@@ -2,8 +2,12 @@ name: Génération de Newsletter LinkedIn
 
 on:
   schedule:
-  - cron: '0 9 * * 1'
+    - cron: '0 9 * * 1'
   workflow_dispatch:
+
+# Ajouter cette section pour accorder des permissions d'écriture
+permissions:
+  contents: write
 
 jobs:
   generate-newsletter:
@@ -12,9 +16,6 @@ jobs:
     steps:
     - name: Checkout du dépôt portfolio-automation
       uses: actions/checkout@v3
-      with:
-        token: ${{ secrets.GH_PAT }}
-        fetch-depth: 0
     
     - name: Checkout du dépôt portfolio
       uses: actions/checkout@v3
@@ -48,4 +49,3 @@ jobs:
         author_email: 'actions@github.com'
         message: 'Génération de la newsletter hebdomadaire'
         push: true
-        github_token: ${{ secrets.GH_PAT }}
