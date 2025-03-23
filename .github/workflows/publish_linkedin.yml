@@ -1,4 +1,4 @@
-name: Publish to LinkedIn
+name: Publication sur LinkedIn
 
 on:
   workflow_run:
