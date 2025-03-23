@@ -2,9 +2,8 @@ name: Génération de Newsletter LinkedIn
 
 on:
   schedule:
-    # Exécution tous les lundis à 9h00 UTC
     - cron: '0 9 * * 1'
-  workflow_dispatch:  # Permet le déclenchement manuel
+  workflow_dispatch:
 
 jobs:
   generate-newsletter:
@@ -14,7 +13,8 @@ jobs:
     - name: Checkout du dépôt portfolio-automation
       uses: actions/checkout@v3
       with:
-        path: portfolio-automation
+        token: ${{ secrets.REPO_ACCESS_TOKEN }}
+        fetch-depth: 0
     
     - name: Checkout du dépôt portfolio
       uses: actions/checkout@v3
@@ -35,23 +35,18 @@ jobs:
     
     - name: Génération de la newsletter
       run: |
-        cd portfolio-automation
-        python scripts/newsletter_generator.py
+        cd ${{ github.workspace }}
+        python PORTFOLIO/scripts/newsletter_generator.py
       env:
-        PORTFOLIO_DIR: ${{ github.workspace }}/portfolio
-        OUTPUT_DIR: ${{ github.workspace }}/portfolio-automation/newsletters
+        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
+        OUTPUT_DIR: ${{ github.workspace }}/newsletters
     
-    - name: Commit des changements
-      run: |
-        cd portfolio-automation
-        git config user.name "GitHub Actions Bot"
-        git config user.email "fontaine.alexia8@gmail.com"
-        git add newsletters/
-        git diff --staged --quiet || git commit -m "Génération de la newsletter hebdomadaire"
-
-    - name: Push changes
-      uses: ad-m/github-push-action@master
+    - name: Push changes using action
+      uses: EndBug/add-and-commit@v9
       with:
-        github_token: ${{ secrets.GH_PAT }}
-        branch: main
-        directory: portfolio-automation
+        add: 'newsletters'
+        author_name: 'GitHub Actions'
+        author_email: 'actions@github.com'
+        message: 'Génération de la newsletter hebdomadaire'
+        push: true
+        github_token: ${{ secrets.GT_PATH }}
