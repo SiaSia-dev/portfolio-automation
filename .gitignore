@@ -1,0 +1,47 @@
+# Dossiers temporaires et de cache
+gh_pages_temp_*/
+.tmp/
+temp/
+__pycache__/
+.cache/
+.linkedin_cache/
+
+# Fichiers de log
+*.log
+logs/
+
+# Fichiers générés
+newsletters/
+*.html
+
+# Python
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Environnement et secrets
+.env
+*.env
+.secrets
+
+# Systèmes d'exploitation
+.DS_Store
+Thumbs.db
+
+# Éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Fichiers de build et distribution
+build/
+dist/
+*.egg-info/
+
+# Sauvegarde
+*.bak
+*.backup
