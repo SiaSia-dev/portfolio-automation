@@ -2,6 +2,26 @@
 
 Découvrez mes derniers projets et réalisations !
 
+## memoire-rouillee-v0
+
+
+
+Mémoire Rouillée : Archéologie Industrielle en Images Concept Artistique Une série photographique documentant la lente métamorphose d'une Rambler Renault abandonnée dans une vieille grange ariégeoise, transformée en sculpture involontaire du temps. A...
+
+[En savoir plus](#)
+
+---
+
+## univers-petits-pas-v0
+
+
+
+L'Univers des Petits Pas : Documentation Créative de la Petite Enfance Concept Artistique Une documentation photographique qui explore les premiers apprentissages, capturant ces moments où l'enfant construit sa compréhension du monde, un pas curieux ...
+
+[En savoir plus](#)
+
+---
+
 ## fleurs-documentation-narrative
 
 
@@ -37,26 +57,6 @@ Photogrammétrie : Art de la Modélisation 3D Essence de la Technique Une métho
 
 
 Blog Scientifique : ARCHAEDYN Image Représentative Contexte du Projet Un projet de recherche archéologique innovant explorant les dynamiques territoriales sur 7 millénaires. Objectifs de Recherche Analyser l'occupation humaine Étudier les transformat...
-
-[En savoir plus](#)
-
----
-
-## approche-integree-creation
-
-
-
-Une Approche Intégrée de Création de Contenus Image Représentative Concept Fondamental Une démarche de création qui transcende les frontières traditionnelles entre différents médias et disciplines. Principes Directeurs Synergie Multidisciplinaire Fus...
-
-[En savoir plus](#)
-
----
-
-## parcours-data-communication
-
-
-
-Parcours Data & Communication Digitale Image Représentative Évolution Professionnelle Un parcours caractérisé par une convergence constante entre compétences analytiques et créatives. Dimensions Professionnelles Formation et Expertise Systèmes d'Info...
 
 [En savoir plus](#)
 

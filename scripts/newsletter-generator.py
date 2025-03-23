@@ -180,7 +180,7 @@ def copy_images_to_newsletter(portfolio_directory, output_directory):
         logger.info(f"{copied_count} images copiées du dépôt PORTFOLIO vers le dossier newsletter/img")
         
         # Copier l'image d'en-tête si elle existe
-        header_image_path = os.path.join(portfolio_img_dir, "Moi.jpg")
+        header_image_path = os.path.join(portfolio_img_dir, "Slowsia.jpg")
         if os.path.exists(header_image_path):
             header_dest_path = os.path.join(output_img_dir, "header-bg.jpg")
             try:
