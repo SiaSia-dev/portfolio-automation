@@ -161,7 +161,7 @@ def prepare_linkedin_content(newsletter_path):
         
         # Préparer un contenu attrayant pour LinkedIn
         linkedin_content = f"🔥 {title} 🔥\n\n"
-        linkedin_content += "Découvrez mes derniers projets et réalisations cette semaine !\n\n"
+        linkedin_content += "Découvrez mes derniers projets et réalisations cette semaine ! Test automatisation Newsletter depuis mon portfolio\n\n"
         
         # Ajouter un aperçu des projets (extraire les titres de second niveau)
         projects = []
