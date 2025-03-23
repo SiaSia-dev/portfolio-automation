@@ -1,27 +1,43 @@
-name: Génération de Newsletter LinkedIn
+name: Génération et Déploiement de Newsletter
 
 on:
   schedule:
-    - cron: '0 9 * * 1'
-  workflow_dispatch:
+    - cron: '0 9 * * 1'  # Tous les lundis à 9h00
+  workflow_dispatch:     # Permet le déclenchement manuel
 
-# Ajouter cette section pour accorder des permissions d'écriture
+# Permissions nécessaires pour écrire dans le repo et déployer GitHub Pages
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+# Configuration de l'environnement GitHub Pages
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   generate-newsletter:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout du dépôt portfolio-automation
+    - name: Checkout du dépôt newsletter-portfolio
       uses: actions/checkout@v3
+      with:
+        path: newsletter-portfolio
     
     - name: Checkout du dépôt portfolio
       uses: actions/checkout@v3
       with:
         repository: SiaSia-dev/PORTFOLIO
         path: PORTFOLIO
+        token: ${{ secrets.GH_PAT }}
+    
+    - name: Checkout du dépôt portfolio-automation
+      uses: actions/checkout@v3
+      with:
+        repository: SiaSia-dev/portfolio-automation
+        path: portfolio-automation
         token: ${{ secrets.GH_PAT }}
     
     - name: Configuration de Python
@@ -32,20 +48,131 @@ jobs:
     - name: Installation des dépendances
       run: |
         python -m pip install --upgrade pip
-        pip install PyYAML markdown beautifulsoup4
+        pip install PyYAML markdown beautifulsoup4 requests
     
-    - name: Génération de la newsletter
+    - name: Exécution du générateur de newsletter
       run: |
-        python scripts/newsletter_generator.py
+        python portfolio-automation/scripts/newsletter_generator.py
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
     
-    - name: Push changes using action
-      uses: EndBug/add-and-commit@v9
+    - name: Création du dossier newsletters dans le dépôt principal
+      run: |
+        mkdir -p newsletter-portfolio/newsletters
+        cp -R newsletters/* newsletter-portfolio/newsletters/
+    
+    - name: Création de l'index et de la structure du site
+      run: |
+        # Création d'un fichier index.html à la racine qui redirige vers la dernière newsletter
+        echo '<!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Récits visuels, horizons numériques</title>
+            <meta http-equiv="refresh" content="0;url=./newsletters/latest.html">
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    padding: 40px;
+                    max-width: 800px;
+                    margin: 0 auto;
+                }
+                h1 {
+                    color: #333;
+                }
+                p {
+                    color: #666;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Récits visuels, horizons numériques</h1>
+            <p>Redirection vers la dernière newsletter...</p>
+            <p><a href="./newsletters/latest.html">Cliquez ici si vous n'êtes pas redirigé automatiquement</a></p>
+        </body>
+        </html>' > newsletter-portfolio/index.html
+        
+        # Création d'un fichier .nojekyll pour désactiver le traitement Jekyll
+        touch newsletter-portfolio/.nojekyll
+        
+        # Création d'un lien symbolique de la dernière newsletter
+        LATEST=$(ls -t newsletters/*.html | head -1)
+        cp $LATEST newsletter-portfolio/newsletters/latest.html
+        
+        # Création d'une page d'archive
+        echo '<!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Archives - Récits visuels, horizons numériques</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 40px;
+                }
+                h1 {
+                    color: #333;
+                }
+                ul {
+                    list-style-type: none;
+                    padding: 0;
+                }
+                li {
+                    margin-bottom: 10px;
+                    padding: 10px;
+                    border-bottom: 1px solid #eee;
+                }
+                a {
+                    text-decoration: none;
+                    color: #0366d6;
+                }
+                a:hover {
+                    text-decoration: underline;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Archives des newsletters</h1>
+            <ul>' > newsletter-portfolio/newsletters/archives.html
+            
+        for file in $(ls -t newsletters/*.html | grep -v "archives.html" | grep -v "latest.html"); do
+            filename=$(basename $file)
+            date=$(echo $filename | sed -E 's/newsletter_([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/')
+            echo "<li><a href=\"./$filename\">Newsletter du $date</a></li>" >> newsletter-portfolio/newsletters/archives.html
+        done
+        
+        echo '    </ul>
+        </body>
+        </html>' >> newsletter-portfolio/newsletters/archives.html
+    
+    - name: Configuration de GitHub Pages
+      uses: actions/configure-pages@v3
+    
+    - name: Création de l'artefact de déploiement
+      run: |
+        cd newsletter-portfolio
+        find . -type f -not -path "*/\.*" | sort
+    
+    - name: Déploiement sur GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
       with:
-        add: 'newsletters'
-        author_name: 'GitHub Actions'
-        author_email: 'fontaine.alexia8@gmail.com'
-        message: 'Génération de la newsletter hebdomadaire'
-        push: true
+        folder: newsletter-portfolio
+        branch: gh-pages
+        clean: true
+    
+    - name: Publication sur LinkedIn si le token est configuré
+      if: ${{ env.LINKEDIN_ACCESS_TOKEN != '' && env.LINKEDIN_PERSON_ID != '' }}
+      run: |
+        python portfolio-automation/scripts/linkedin_publisher.py
+      env:
+        LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+        LINKEDIN_PERSON_ID: ${{ secrets.LINKEDIN_PERSON_ID }}
+        NEWSLETTERS_DIR: ${{ github.workspace }}/newsletters
+        GITHUB_USERNAME: SiaSia-dev
+        GITHUB_REPO: newsletter-portfolio
