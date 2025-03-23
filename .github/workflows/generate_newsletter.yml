@@ -49,4 +49,4 @@ jobs:
         author_email: 'actions@github.com'
         message: 'Génération de la newsletter hebdomadaire'
         push: true
-        github_token: ${{ secrets.GT_PAT }}
+        github_token: ${{ secrets.GH_PAT }}
