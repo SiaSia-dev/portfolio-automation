@@ -206,7 +206,7 @@ def prepare_linkedin_content(newsletter_path):
                 linkedin_content += f"...et {len(projects) - 3} autres projets\n"
         
         # Ajouter un lien vers la version complète (à adapter selon votre setup)
-        linkedin_content += "\nConsultez la version complète sur mon portfolio: https://votre-portfolio.com/newsletters"
+        linkedin_content += "\nConsultez la version complète sur mon portfolio: https://www.linkedin.com/company/www-linkedin-com-in-alexiafontaine"
         
         # Limiter à la limite de caractères de LinkedIn
         max_length = 3000

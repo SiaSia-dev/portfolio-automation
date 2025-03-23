@@ -317,7 +317,7 @@ Découvrez mes derniers projets et réalisations !
 
 N'hésitez pas à me contacter pour discuter de projets ou simplement échanger sur nos domaines d'intérêt communs.
 
-- [Portfolio](https://votre-portfolio.com)
+- [Portfolio](https://portfolio-af-v2.netlify.app/)
 - [LinkedIn](https://www.linkedin.com/in/alexiafontaine)
 """
     
