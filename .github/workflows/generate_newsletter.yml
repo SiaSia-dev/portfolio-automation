@@ -2,7 +2,7 @@ name: Génération et Déploiement de Newsletter
 
 on:
   schedule:
-    - cron: '0 9 * * 1'  # Tous les lundis à 9h00
+    - cron: '0 7 * * 1'  # Tous les lundis à 7h00
   workflow_dispatch:     # Permet le déclenchement manuel
 
 # Permissions nécessaires pour écrire dans le repo et déployer GitHub Pages
