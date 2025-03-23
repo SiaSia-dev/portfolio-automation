@@ -59,14 +59,6 @@ def refresh_access_token():
         
         if response.status_code == 200:
             tokens = response.json()
-            
-            # Mettre à jour les tokens dans l'environnement GitHub
-            if os.environ.get('GITHUB_ACTIONS') == 'true':
-                # Dans GitHub Actions, nous mettons à jour les secrets
-                # Cette partie nécessite une configuration supplémentaire (voir README)
-                update_github_secrets(tokens)
-            
-            # Renvoyer le nouveau token d'accès
             logger.info("Token d'accès LinkedIn rafraîchi avec succès")
             return tokens['access_token']
         else:
@@ -76,37 +68,8 @@ def refresh_access_token():
         logger.error(f"Erreur lors du rafraîchissement du token: {str(e)}")
         return None
 
-def update_github_secrets(tokens):
-    """
-    Met à jour les secrets GitHub pour les tokens LinkedIn
-    
-    Note: Cette fonction nécessite une configuration supplémentaire.
-    Options alternatives:
-    1. Utiliser une action GitHub qui peut mettre à jour les secrets
-    2. Stocker les tokens dans un stockage externe sécurisé
-    """
-    # Exemple avec l'API GitHub
-    try:
-        import base64
-        from nacl import encoding, public
-        
-        github_token = os.environ.get('GH_PAT')
-        github_repo = os.environ.get('GITHUB_REPOSITORY')
-        
-        if not (github_token and github_repo):
-            logger.error("Variables GitHub manquantes")
-            return
-        
-        # Cette approche nécessite un token GitHub avec les droits appropriés
-        # Code pour mettre à jour les secrets ici...
-        logger.info("Les secrets GitHub doivent être mis à jour manuellement")
-    except ImportError:
-        logger.warning("Bibliothèques pour chiffrement manquantes")
-    except Exception as e:
-        logger.error(f"Erreur lors de la mise à jour des secrets: {str(e)}")
-
 def publish_to_linkedin(content):
-    """Publie un contenu sur LinkedIn"""
+    """Publie un contenu sur la page d'entreprise LinkedIn"""
     try:
         # Obtenir ou rafraîchir le token d'accès
         access_token = os.environ.get('LINKEDIN_ACCESS_TOKEN')
@@ -118,17 +81,17 @@ def publish_to_linkedin(content):
             logger.error("Impossible d'obtenir un token d'accès LinkedIn valide")
             return False
         
-        # ID de personne LinkedIn (à configurer)
-        person_id = os.environ.get('LINKEDIN_PERSON_ID')
-        if not person_id:
-            logger.error("Variable d'environnement LINKEDIN_PERSON_ID manquante")
+        # ID de la page d'entreprise LinkedIn
+        company_id = os.environ.get('LINKEDIN_COMPANY_ID')
+        if not company_id:
+            logger.error("Variable d'environnement LINKEDIN_COMPANY_ID manquante")
             return False
         
         url = "https://api.linkedin.com/v2/ugcPosts"
         
-        # Formater la requête pour LinkedIn
+        # Formater la requête pour LinkedIn avec la page d'entreprise comme auteur
         payload = {
-            "author": f"urn:li:person:{person_id}",
+            "author": f"urn:li:organization:{company_id}",
             "lifecycleState": "PUBLISHED",
             "specificContent": {
                 "com.linkedin.ugc.ShareContent": {
@@ -205,8 +168,8 @@ def prepare_linkedin_content(newsletter_path):
             if len(projects) > 3:
                 linkedin_content += f"...et {len(projects) - 3} autres projets\n"
         
-        # Ajouter un lien vers la version complète (à adapter selon votre setup)
-        linkedin_content += "\nConsultez la version complète sur mon portfolio: https://www.linkedin.com/company/www-linkedin-com-in-alexiafontaine"
+        # Ajouter un lien vers la page LinkedIn
+        linkedin_content += "\nRetrouvez toutes mes newsletters sur LinkedIn: https://www.linkedin.com/company/www-linkedin-com-in-alexiafontaine"
         
         # Limiter à la limite de caractères de LinkedIn
         max_length = 3000
