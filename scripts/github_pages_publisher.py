@@ -26,7 +26,7 @@ class GithubPagesPublisher:
             raise ValueError("URL du dépôt GitHub non spécifiée")
         
         self.branch = branch
-        self.temp_dir = Path("./.gh-pages-temp")
+        self.temp_dir = Path("./gh_pages_temp_" + datetime.now().strftime("%Y%m%d%H%M%S"))        
         
     def _run_command(self, command, cwd=None):
         """Exécute une commande shell et retourne le résultat."""
