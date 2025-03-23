@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newsletter Portfolio - 23/03/2025</title>
+    
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap');
+            
+            :root {
+                --primary: #4a6d8c;
+                --secondary: #2a475e;
+                --accent: #90afc5;
+                --light: #f6f9fc;
+                --dark: #333333;
+                --text: #444444;
+                --shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+                --border: 1px solid #eaeaea;
+                --radius: 8px;
+            }
+            
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: 'Poppins', sans-serif;
+                line-height: 1.7;
+                color: var(--text);
+                background-color: var(--light);
+                padding: 0;
+                margin: 0;
+                scroll-behavior: smooth;
+            }
+            
+            .container {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 40px 20px;
+                background-color: white;
+                box-shadow: var(--shadow);
+                border-radius: var(--radius);
+            }
+        
+            .header {
+                text-align: center;
+                margin-bottom: 50px;
+                padding: 60px 20px;
+                background-image: url('img/header-bg.jpg');
+                background-size: cover;
+                background-position: center;
+                border-radius: var(--radius);
+                position: relative;
+                color: white;
+            }
+            
+            .header::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(42, 71, 94, 0.7);
+                border-radius: var(--radius);
+                z-index: 1;
+            }
+            
+            .header-content {
+                position: relative;
+                z-index: 2;
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin-bottom: 15px;
+                color: white;
+                position: relative;
+                display: inline-block;
+            }
+            
+            .header h1::after {
+                content: '';
+                position: absolute;
+                left: 50%;
+                bottom: -10px;
+                transform: translateX(-50%);
+                width: 60px;
+                height: 3px;
+                background-color: var(--accent);
+            }
+            
+            .header p {
+                color: rgba(255, 255, 255, 0.9);
+            }
+            
+            h2 {
+                font-size: 1.8rem;
+                margin-bottom: 15px;
+                scroll-margin-top: 50px;
+            }
+            
+            h3 {
+                font-size: 1.5rem;
+                margin-top: 30px;
+                margin-bottom: 15px;
+            }
+            
+            p {
+                margin-bottom: 20px;
+            }
+            
+            img {
+                max-width: 100%;
+                height: auto;
+                border-radius: var(--radius);
+                margin: 1em 0;
+            }
+            
+            a {
+                color: var(--primary);
+                text-decoration: none;
+                transition: all 0.3s ease;
+            }
+            
+            a:hover {
+                color: var(--accent);
+                text-decoration: underline;
+            }
+            
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 30px;
+                margin-bottom: 50px;
+            }
+            
+            .project-card {
+                border-radius: var(--radius);
+                overflow: hidden;
+                box-shadow: var(--shadow);
+                transition: all 0.3s ease;
+                background-color: white;
+            }
+            
+            .project-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            }
+            
+            .project-image-container {
+                overflow: hidden;
+                height: 200px;
+            }
+            
+            .project-image {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                transition: transform 0.5s ease;
+            }
+            
+            .project-card:hover .project-image {
+                transform: scale(1.05);
+            }
+            
+            .project-content {
+                padding: 25px;
+            }
+            
+            .project-title {
+                font-size: 1.4rem;
+                margin-bottom: 10px;
+                color: var(--primary);
+            }
+            
+            .project-description {
+                font-weight: 500;
+                margin-bottom: 15px;
+                color: var(--dark);
+            }
+            
+            .project-summary {
+                margin-bottom: 20px;
+                font-size: 0.95rem;
+                color: var(--text);
+            }
+            
+            .toc {
+                background-color: var(--light);
+                padding: 20px;
+                border-radius: var(--radius);
+                margin-bottom: 30px;
+                text-align: center;
+                max-width: 600px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            
+            .toc-title {
+                font-weight: 600;
+                margin-bottom: 10px;
+                font-size: 1.2rem;
+                color: var(--primary);
+            }
+            
+            .toc-list {
+                list-style-type: none;
+                margin-left: 0;
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+                text-align: center;
+            }
+            
+            .toc-item {
+                margin-bottom: 5px;
+            }
+            
+            .toc-item a {
+                display: block;
+                padding: 8px;
+                background-color: white;
+                border-radius: var(--radius);
+                transition: all 0.3s ease;
+            }
+            
+            .toc-item a:hover {
+                background-color: var(--accent);
+                color: white;
+                text-decoration: none;
+                transform: translateY(-2px);
+            }
+            
+            .tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 20px;
+                margin-top: 20px;
+            }
+            
+            .tag {
+                background-color: var(--light);
+                color: var(--primary);
+                padding: 5px 12px;
+                border-radius: 20px;
+                font-size: 0.75rem;
+                font-weight: 500;
+                transition: all 0.3s ease;
+            }
+            
+            .tag:hover {
+                background-color: var(--accent);
+                color: white;
+            }
+            
+            .btn {
+                display: inline-block;
+                background-color: var(--primary);
+                color: white !important;
+                padding: 10px 20px;
+                border-radius: 25px;
+                text-decoration: none;
+                font-weight: 500;
+                transition: all 0.3s ease;
+                border: none;
+                font-size: 0.9rem;
+                letter-spacing: 0.5px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+                cursor: pointer;
+            }
+            
+            .btn:hover {
+                background-color: var(--secondary);
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+                color: white !important;
+                text-decoration: none !important;
+            }
+            
+            .back-to-top {
+                display: inline-block;
+                margin-top: 30px;
+                margin-bottom: 50px;
+            }
+            
+            .footer {
+                text-align: center;
+                padding-top: 40px;
+                border-top: var(--border);
+                margin-top: 30px;
+            }
+            
+            .social-links {
+                display: flex;
+                justify-content: center;
+                gap: 30px;
+                margin: 25px 0;
+            }
+            
+            .social-link {
+                color: var(--primary);
+                text-decoration: none;
+                font-weight: 500;
+                transition: all 0.3s ease;
+            }
+            
+            .social-link:hover {
+                color: var(--secondary);
+                text-decoration: underline;
+            }
+            
+            .copyright {
+                font-size: 0.9rem;
+                color: #777;
+                margin-top: 30px;
+            }
+            
+            .project-full-content {
+                padding: 40px;
+                margin-bottom: 60px;
+                background-color: white;
+                border-radius: var(--radius);
+                box-shadow: var(--shadow);
+            }
+            
+            .project-full-content img.hero-image {
+                width: 100%;
+                max-height: 400px;
+                object-fit: cover;
+                border-radius: var(--radius);
+                margin-bottom: 30px;
+            }
+            
+            blockquote {
+                border-left: 4px solid var(--accent);
+                padding-left: 20px;
+                margin: 1em 0;
+                font-style: italic;
+                color: var(--text);
+            }
+            
+            ul, ol {
+                margin-left: 1.5em;
+                margin-bottom: 1em;
+            }
+            
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 20px 0;
+            }
+            
+            table th, table td {
+                border: 1px solid #ddd;
+                padding: 8px;
+            }
+            
+            table th {
+                padding-top: 12px;
+                padding-bottom: 12px;
+                text-align: left;
+                background-color: var(--accent);
+                color: white;
+            }
+            
+            code {
+                background-color: #f0f0f0;
+                padding: 2px 5px;
+                border-radius: 3px;
+                font-family: monospace;
+            }
+            
+            pre {
+                background-color: #f0f0f0;
+                padding: 15px;
+                border-radius: 5px;
+                overflow-x: auto;
+                margin: 20px 0;
+            }
+            
+            pre code {
+                padding: 0;
+                background-color: transparent;
+            }
+            
+            hr {
+                border: none;
+                height: 1px;
+                background-color: #eaeaea;
+                margin: 25px 0;
+            }
+            
+            /* Styles responsifs */
+            @media (max-width: 900px) {
+                .grid {
+                    grid-template-columns: 1fr;
+                }
+                
+                .container {
+                    padding: 20px;
+                }
+                
+                h1 {
+                    font-size: 2rem;
+                }
+                
+                .project-full-content {
+                    padding: 20px;
+                }
+                
+                .toc-list {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+        
+</head>
+<body>
+    <div class="container">
+        
+            <div class="header">
+                <div class="header-content">
+                    <h1>Newsletter Portfolio</h1>
+                    <p>23/03/2025</p>
+                    <p>Découvrez mes derniers projets et réalisations dans cette newsletter hebdomadaire.</p>
+                </div>
+            </div>
+            
+        
+        
+        <div class="toc">
+            <div class="toc-title">Table des matières</div>
+            <ul class="toc-list">
+        <li class="toc-item"><a href="#project-voyages">voyages</a></li><li class="toc-item"><a href="#project-tresor-eauze">tresor-eauze</a></li><li class="toc-item"><a href="#project-principes-fondamentaux">principes-fondamentaux</a></li><li class="toc-item"><a href="#project-suivi-pedagogique">suivi-pedagogique</a></li><li class="toc-item"><a href="#project-sources-inspiration-voyages">sources-inspiration-voyages</a></li><li class="toc-item"><a href="#project-photographie">photographie</a></li>
+            </ul>
+        </div>
+        
+        
+        <div class="grid">
+            
+            <div class="project-card">
+                <div class="project-image-container">
+                    <img class="project-image" src="img/Explorez_gif.gif" alt="voyages" loading="lazy">
+                </div>
+                <div class="project-content">
+                    <h2 class="project-title">voyages</h2>
+                    <div class="project-description"></div>
+                    <div class="project-summary">Voyages et Découvertes Sources d'Inspiration et Explorations Culturelles Image de Référence Philosophie des Voyages Les voyages comme sources inépuisables d'inspiration, de découvertes et de compréhension interculturelle. Approche Exploration attenti...</div>
+                    
+                    <a href="#project-voyages" class="btn">En savoir plus</a>
+                </div>
+            </div>
+            
+            <div class="project-card">
+                <div class="project-image-container">
+                    <img class="project-image" src="img/Slowsia.jpg" alt="tresor-eauze" loading="lazy">
+                </div>
+                <div class="project-content">
+                    <h2 class="project-title">tresor-eauze</h2>
+                    <div class="project-description"></div>
+                    <div class="project-summary">Trésor d'Eauze : Patrimoine Numérique Interactif Présentation du Projet Un projet de valorisation du patrimoine culturel qui combine photographie, recherche historique et conception d'expériences interactives pour rendre accessibles des trésors cultu...</div>
+                    
+                    <a href="#project-tresor-eauze" class="btn">En savoir plus</a>
+                </div>
+            </div>
+            
+            <div class="project-card">
+                <div class="project-image-container">
+                    <img class="project-image" src="img/Slowsia.jpg" alt="principes-fondamentaux" loading="lazy">
+                </div>
+                <div class="project-content">
+                    <h2 class="project-title">principes-fondamentaux</h2>
+                    <div class="project-description"></div>
+                    <div class="project-summary">Principes Fondamentaux Les Piliers de ma Démarche Créative et Analytique 1. Clarté : Rendre l'Impossible Compréhensible Essence Transformer le complexe en accessible Démystifier les concepts techniques Créer des ponts de compréhension Stratégies Déco...</div>
+                    
+                    <a href="#project-principes-fondamentaux" class="btn">En savoir plus</a>
+                </div>
+            </div>
+            
+            <div class="project-card">
+                <div class="project-image-container">
+                    <img class="project-image" src="img/suivi_pedago.png" alt="suivi-pedagogique" loading="lazy">
+                </div>
+                <div class="project-content">
+                    <h2 class="project-title">suivi-pedagogique</h2>
+                    <div class="project-description"></div>
+                    <div class="project-summary">Prototype de Suivi Pédagogique Présentation du Projet Un prototype d'application conçu pour aider au suivi et à l'analyse de la progression des apprenants. Fonctionnalités Principales Suivi de la progression des apprenants Génération de rapports d'an...</div>
+                    
+                    <a href="#project-suivi-pedagogique" class="btn">En savoir plus</a>
+                </div>
+            </div>
+            
+            <div class="project-card">
+                <div class="project-image-container">
+                    <img class="project-image" src="img/Explorez_gif.gif" alt="sources-inspiration-voyages" loading="lazy">
+                </div>
+                <div class="project-content">
+                    <h2 class="project-title">sources-inspiration-voyages</h2>
+                    <div class="project-description"></div>
+                    <div class="project-summary">Sources d'Inspiration : Les Voyages Image Représentative Philosophie des Voyages Les voyages comme source intarissable de découvertes, de compréhension et de transformation personnelle. Dimensions de l'Exploration Approche Sensorielle Éveil de tous l...</div>
+                    
+                    <a href="#project-sources-inspiration-voyages" class="btn">En savoir plus</a>
+                </div>
+            </div>
+            
+            <div class="project-card">
+                <div class="project-image-container">
+                    <img class="project-image" src="img/1ere-couv_1.jpg" alt="photographie" loading="lazy">
+                </div>
+                <div class="project-content">
+                    <h2 class="project-title">photographie</h2>
+                    <div class="project-description"></div>
+                    <div class="project-summary">Photographie Exploration Visuelle et Patrimoniale Image de Référence Blog Scientifique : ARCHAEDYN Projet de Recherche Archéologique Analyse des dynamiques territoriales sur 7 millénaires Du Néolithique au Moyen Âge Techniques de pointe en analyse sp...</div>
+                    
+                    <a href="#project-photographie" class="btn">En savoir plus</a>
+                </div>
+            </div>
+            
+        </div>
+        
+        
+            <div id="project-voyages" class="project-full-content">
+                <h2>voyages</h2>
+                
+                <img class="hero-image" src="img/Explorez_gif.gif" alt="voyages" loading="lazy">
+                
+                <h1>Voyages et Découvertes</h1>
+<h2>Sources d'Inspiration et Explorations Culturelles</h2>
+<h3>Image de Référence</h3>
+<p><img alt="Exploration Gif" src="/img/Explorez_gif.gif" /></p>
+<h3>Philosophie des Voyages</h3>
+<p>Les voyages comme sources inépuisables d'inspiration, de découvertes et de compréhension interculturelle.</p>
+<h3>Approche</h3>
+<ul>
+<li>Exploration attentive aux détails culturels</li>
+<li>Développement d'une sensibilité interculturelle</li>
+<li>Éveil de tous les sens</li>
+</ul>
+<h3>Projets et Séries</h3>
+<h4>1. Série Bali Inspirations</h4>
+<h5>Design Graphique et Culture</h5>
+<ul>
+<li><strong>Thème</strong>: Motifs traditionnels balinais</li>
+<li><strong>Technique</strong>: Réinterprétation contemporaine</li>
+<li><strong>Objectif</strong>: Fusion de l'héritage ancestral avec une esthétique moderne</li>
+</ul>
+<h5>Documentation Vidéo</h5>
+<p><a href="https://player.vimeo.com/video/1067021067">Vidéo Bali Inspirations</a></p>
+<h4>2. Voyage Sensoriel</h4>
+<h5>Exploration Multisensorielle</h5>
+<ul>
+<li><strong>Concept</strong>: La dégustation comme exploration culturelle</li>
+<li><strong>Approche</strong>: Combinaison de :</li>
+<li>Connaissances techniques</li>
+<li>Sensibilité perceptive</li>
+<li>Contexte historique</li>
+</ul>
+<h5>Grille Sensorielle</h5>
+<ul>
+<li>Observer</li>
+<li>Sentir</li>
+<li>Goûter</li>
+<li>Écouter</li>
+<li>Toucher</li>
+</ul>
+<h5>Documentation Vidéo</h5>
+<p><a href="https://player.vimeo.com/video/1067021012">Vidéo Voyage Sensoriel</a></p>
+<h4>3. Carnets de Voyage</h4>
+<h5>Narration Visuelle</h5>
+<ul>
+<li><strong>Contenu</strong>: </li>
+<li>Notes</li>
+<li>Croquis</li>
+<li>Photographies</li>
+<li><strong>Technique</strong>: Méthode mixte</li>
+<li>Illustrations</li>
+<li>Collages</li>
+<li>Annotations personnelles</li>
+</ul>
+<h5>Documentation Vidéo</h5>
+<p><a href="https://player.vimeo.com/video/1067021037">Vidéo Carnets de Voyage</a></p>
+<h3>Dimensions des Voyages</h3>
+<ul>
+<li><strong>Culturelle</strong>: Immersion dans les traditions locales</li>
+<li><strong>Artistique</strong>: Capture des nuances visuelles</li>
+<li><strong>Personnelle</strong>: Transformation et croissance individuelle</li>
+</ul>
+<h3>Techniques de Documentation</h3>
+<ul>
+<li>Photographie</li>
+<li>Illustration</li>
+<li>Écriture</li>
+<li>Enregistrements sonores</li>
+<li>Collecte d'objets et de matériaux</li>
+</ul>
+<h3>Principes Directeurs</h3>
+<ol>
+<li>Observation profonde</li>
+<li>Respect des cultures</li>
+<li>Ouverture à l'inattendu</li>
+<li>Transformation par l'expérience</li>
+</ol>
+<h3>Impact</h3>
+<ul>
+<li>Enrichissement personnel</li>
+<li>Développement d'une perspective globale</li>
+<li>Inspiration pour projets créatifs</li>
+<li>Compréhension interculturelle approfondie</li>
+</ul>
+<h3>Citation Inspirante</h3>
+<blockquote>
+<p>Les voyages sont des fragments de rêves cousus ensemble par la curiosité et l'émerveillement.</p>
+</blockquote>
+                
+                
+                
+                <a href="#" class="btn back-to-top">Retour en haut</a>
+            </div>
+            
+            <div id="project-tresor-eauze" class="project-full-content">
+                <h2>tresor-eauze</h2>
+                
+                <img class="hero-image" src="img/Slowsia.jpg" alt="tresor-eauze" loading="lazy">
+                
+                <h1>Trésor d'Eauze : Patrimoine Numérique Interactif</h1>
+<h2>Présentation du Projet</h2>
+<p>Un projet de valorisation du patrimoine culturel qui combine photographie, recherche historique et conception d'expériences interactives pour rendre accessibles des trésors culturels.</p>
+<h2>Objectifs</h2>
+<ul>
+<li>Préserver et valoriser le patrimoine archéologique</li>
+<li>Créer une expérience de médiation culturelle immersive</li>
+<li>Rendre l'histoire accessible à un large public</li>
+</ul>
+<h2>Technologies Utilisées</h2>
+<ul>
+<li>Modélisation 3D</li>
+<li>Recherche Historique</li>
+<li>Médiation Culturelle</li>
+<li>Web Design</li>
+<li>Photogrammétrie</li>
+</ul>
+<h2>Capture d'Écran</h2>
+<p><img alt="Trésor d'Eauze" src="/img/tresor-eauze.jpg" /></p>
+<h2>Lien du Projet</h2>
+<p><a href="https://tresor-eauze.netlify.app/">Consulter le Trésor d'Eauze</a></p>
+<h2>Description Détaillée</h2>
+<p>Cette initiative démontre comment les technologies numériques peuvent servir la préservation et la médiation culturelle, en transformant des objets archéologiques en expériences interactives.</p>
+<h2>Approche</h2>
+<ul>
+<li>Documentation visuelle approfondie</li>
+<li>Modélisation 3D d'objets archéologiques</li>
+<li>Contextualisation historique riche</li>
+<li>Création d'une expérience numérique immersive</li>
+</ul>
+<h2>Compétences Mises en Œuvre</h2>
+<ul>
+<li>Photographie documentaire</li>
+<li>Modélisation 3D</li>
+<li>Recherche historique</li>
+<li>Conception d'expériences interactives</li>
+<li>Médiation culturelle numérique</li>
+</ul>
+<h2>Objets Numérisés</h2>
+<ul>
+<li>Bague à sceau</li>
+<li>Bague aux camées</li>
+<li>Autres artefacts archéologiques</li>
+</ul>
+<h2>Impact</h2>
+<ul>
+<li>Préservation numérique du patrimoine</li>
+<li>Accessibilité accrue à l'histoire locale</li>
+<li>Innovation dans la médiation culturelle</li>
+</ul>
+<h2>Techniques de Numérisation</h2>
+<ul>
+<li>Photogrammétrie</li>
+<li>Acquisition multi-angles</li>
+<li>Traitement photographique avancé</li>
+<li>Reconstruction 3D détaillée</li>
+</ul>
+<h2>Exploration Interactive</h2>
+<p>Le projet permet aux utilisateurs de :
+- Explorer des objets historiques en détail
+- Comprendre le contexte archéologique
+- Découvrir l'histoire à travers des expériences immersives</p>
+                
+                
+                
+                <a href="#" class="btn back-to-top">Retour en haut</a>
+            </div>
+            
+            <div id="project-principes-fondamentaux" class="project-full-content">
+                <h2>principes-fondamentaux</h2>
+                
+                <img class="hero-image" src="img/Slowsia.jpg" alt="principes-fondamentaux" loading="lazy">
+                
+                <h1>Principes Fondamentaux</h1>
+<h2>Les Piliers de ma Démarche Créative et Analytique</h2>
+<h3>1. Clarté : Rendre l'Impossible Compréhensible</h3>
+<h4>Essence</h4>
+<ul>
+<li>Transformer le complexe en accessible</li>
+<li>Démystifier les concepts techniques</li>
+<li>Créer des ponts de compréhension</li>
+</ul>
+<h4>Stratégies</h4>
+<ul>
+<li>Déconstruction des idées complexes</li>
+<li>Utilisation de métaphores éclairantes</li>
+<li>Approche pédagogique et inclusive</li>
+</ul>
+<h3>2. Engagement : Créer une Connexion Émotionnelle</h3>
+<h4>Philosophie</h4>
+<ul>
+<li>Les données ne sont pas froides</li>
+<li>Chaque chiffre raconte une histoire</li>
+<li>L'information doit toucher et inspirer</li>
+</ul>
+<h4>Méthodes</h4>
+<ul>
+<li>Contextualisation narrative</li>
+<li>Personnification des données</li>
+<li>Création de récits immersifs</li>
+</ul>
+<h3>3. Impact : Faciliter la Prise de Décision</h3>
+<h4>Vision</h4>
+<ul>
+<li>Au-delà de l'information</li>
+<li>Vers la transformation</li>
+<li>Générer des insights actionnables</li>
+</ul>
+<h4>Approche</h4>
+<ul>
+<li>Analyse stratégique</li>
+<li>Recommandations concrètes</li>
+<li>Mise en perspective systémique</li>
+</ul>
+<h2>Mise en Pratique</h2>
+<h3>Dimensions d'Application</h3>
+<ul>
+<li>Projets de data storytelling</li>
+<li>Analyses stratégiques</li>
+<li>Médiations culturelles</li>
+<li>Documentations créatives</li>
+</ul>
+<h3>Outils et Techniques</h3>
+<ul>
+<li>Visualisation de données</li>
+<li>Narration interdisciplinaire</li>
+<li>Design thinking</li>
+<li>Analyse contextuelle</li>
+</ul>
+<h2>Philosophie Intégrative</h2>
+<blockquote>
+<p>"La vraie compréhension naît là où la rigueur analytique rencontre la sensibilité narrative."</p>
+</blockquote>
+<h3>Impacts Recherchés</h3>
+<ul>
+<li>Éclairage des zones d'ombre</li>
+<li>Transformation des perspectives</li>
+<li>Inspiration et action</li>
+<li>Compréhension holistique</li>
+</ul>
+<h2>Conclusion</h2>
+<p>Des principes qui transcendent les disciplines, créant une approche unique de création et de communication de connaissances.</p>
+                
+                
+                
+                <a href="#" class="btn back-to-top">Retour en haut</a>
+            </div>
+            
+            <div id="project-suivi-pedagogique" class="project-full-content">
+                <h2>suivi-pedagogique</h2>
+                
+                <img class="hero-image" src="img/suivi_pedago.png" alt="suivi-pedagogique" loading="lazy">
+                
+                <h1>Prototype de Suivi Pédagogique</h1>
+<h2>Présentation du Projet</h2>
+<p>Un prototype d'application conçu pour aider au suivi et à l'analyse de la progression des apprenants.</p>
+<h2>Fonctionnalités Principales</h2>
+<ul>
+<li>Suivi de la progression des apprenants</li>
+<li>Génération de rapports d'analyse automatiques</li>
+<li>Identification des apprenants nécessitant un accompagnement personnalisé</li>
+</ul>
+<h2>Technologies Utilisées</h2>
+<ul>
+<li>UX Design</li>
+<li>Tableau de bord</li>
+<li>Analyse de Données</li>
+<li>Python</li>
+<li>Visualisation de données</li>
+</ul>
+<h2>Capture d'Écran</h2>
+<p><img alt="Suivi Pédagogique" src="/img/suivi_pedago.png" /></p>
+<h2>Lien du Projet</h2>
+<p><a href="https://suivi-pedago.streamlit.app/">Explorer l'Application de Suivi Pédagogique</a></p>
+<h2>Objectifs</h2>
+<ul>
+<li>Faciliter le suivi des performances des apprenants</li>
+<li>Fournir des insights détaillés sur la progression</li>
+<li>Permettre une intervention personnalisée et ciblée</li>
+</ul>
+<h2>Fonctionnalités Détaillées</h2>
+<ul>
+<li>Analyse comparative des performances</li>
+<li>Tableaux de bord interactifs</li>
+<li>Systèmes d'alerte pour les apprenants en difficulté</li>
+<li>Visualisation graphique des progrès</li>
+</ul>
+<h2>Compétences Mises en Œuvre</h2>
+<ul>
+<li>Analyse de données éducatives</li>
+<li>Développement d'interfaces de suivi</li>
+<li>Conception de systèmes d'analyse prédictive</li>
+<li>Visualisation de données pédagogiques</li>
+</ul>
+                
+                
+                
+                <a href="#" class="btn back-to-top">Retour en haut</a>
+            </div>
+            
+            <div id="project-sources-inspiration-voyages" class="project-full-content">
+                <h2>sources-inspiration-voyages</h2>
+                
+                <img class="hero-image" src="img/Explorez_gif.gif" alt="sources-inspiration-voyages" loading="lazy">
+                
+                <h1>Sources d'Inspiration : Les Voyages</h1>
+<h2>Image Représentative</h2>
+<p><img alt="Exploration et Voyages" src="/img/Explorez_gif.gif" /></p>
+<h2>Philosophie des Voyages</h2>
+<p>Les voyages comme source intarissable de découvertes, de compréhension et de transformation personnelle.</p>
+<h2>Dimensions de l'Exploration</h2>
+<h3>Approche Sensorielle</h3>
+<ul>
+<li>Éveil de tous les sens</li>
+<li>Immersion totale</li>
+<li>Perception multidimensionnelle</li>
+</ul>
+<h3>Processus de Découverte</h3>
+<ol>
+<li><strong>Observation Attentive</strong></li>
+<li>Détails culturels</li>
+<li>Nuances locales</li>
+<li>
+<p>Pratiques quotidiennes</p>
+</li>
+<li>
+<p><strong>Interaction Profonde</strong></p>
+</li>
+<li>Échanges humains</li>
+<li>Compréhension des traditions</li>
+<li>Dialogue interculturel</li>
+</ol>
+<h2>Transformation Personnelle</h2>
+<h3>Développement de la Sensibilité</h3>
+<ul>
+<li>Élargissement de la perspective</li>
+<li>Remise en question des préjugés</li>
+<li>Développement de l'empathie culturelle</li>
+</ul>
+<h3>Enrichissement Intellectuel</h3>
+<ul>
+<li>Accumulation de connaissances</li>
+<li>Compréhension des systèmes culturels</li>
+<li>Déconstruction des narratifs simplistes</li>
+</ul>
+<h2>Méthodes de Documentation</h2>
+<h3>Carnets de Voyage</h3>
+<ul>
+<li>Croquis</li>
+<li>Notes manuscrites</li>
+<li>Photographies</li>
+<li>Collecte d'objets</li>
+<li>Annotations sensorielles</li>
+</ul>
+<h3>Techniques de Capture</h3>
+<ul>
+<li>Photographie documentaire</li>
+<li>Illustration</li>
+<li>Écriture réflexive</li>
+<li>Enregistrements sonores</li>
+</ul>
+<h2>Régions et Inspirations</h2>
+<h3>Asie du Sud-Est</h3>
+<ul>
+<li>Bali</li>
+<li>Traditions artisanales</li>
+<li>Philosophies spirituelles</li>
+<li>Motifs culturels</li>
+</ul>
+<h3>Traditions Européennes</h3>
+<ul>
+<li>Pratiques locales</li>
+<li>Patrimoine culturel</li>
+<li>Dynamiques sociales</li>
+</ul>
+<h2>Impact Créatif</h2>
+<h3>Transformation des Expériences</h3>
+<ul>
+<li>Inspiration pour projets artistiques</li>
+<li>Intégration dans les créations</li>
+<li>Réinterprétation culturelle</li>
+</ul>
+<h3>Projets Développés</h3>
+<ul>
+<li>Série "Bali Inspirations"</li>
+<li>"Voyage Sensoriel"</li>
+<li>Carnets de voyage multimédias</li>
+</ul>
+<h2>Philosophie</h2>
+<blockquote>
+<p>"Voyager, c'est observer le monde comme un livre ouvert, où chaque expérience est une page à comprendre et à interpréter."</p>
+</blockquote>
+<h2>Compétences Développées</h2>
+<ul>
+<li>Observation interculturelle</li>
+<li>Adaptation</li>
+<li>Communication non-verbale</li>
+<li>Pensée comparative</li>
+<li>Créativité contextuelle</li>
+</ul>
+<h2>Conclusion</h2>
+<p>Les voyages comme processus continu d'apprentissage, de découverte et de transformation personnelle et créative.</p>
+                
+                
+                
+                <a href="#" class="btn back-to-top">Retour en haut</a>
+            </div>
+            
+            <div id="project-photographie" class="project-full-content">
+                <h2>photographie</h2>
+                
+                <img class="hero-image" src="img/1ere-couv_1.jpg" alt="photographie" loading="lazy">
+                
+                <h1>Photographie</h1>
+<h2>Exploration Visuelle et Patrimoniale</h2>
+<h3>Image de Référence</h3>
+<p><img alt="Blog Scientifique" src="/img/1ere-couv_1.jpg" /></p>
+<h3>Blog Scientifique : ARCHAEDYN</h3>
+<h4>Projet de Recherche Archéologique</h4>
+<ul>
+<li>Analyse des dynamiques territoriales sur 7 millénaires</li>
+<li>Du Néolithique au Moyen Âge</li>
+<li>Techniques de pointe en analyse spatiale</li>
+</ul>
+<h3>Compétences Clés</h3>
+<ul>
+<li>Analyse cartographique détaillée</li>
+<li>Études archéologiques comparatives</li>
+<li>Modélisation des données spatiales</li>
+<li>Systèmes d'Information Géographique (SIG)</li>
+</ul>
+<h3>Lien du Projet</h3>
+<p><a href="https://archnum.hypotheses.org/175">Article complet sur ArchNum</a></p>
+<h2>Photogrammétrie : Modélisation 3D</h2>
+<h3>Qu'est-ce que la Photogrammétrie ?</h3>
+<p>Technique de création de modèles 3D détaillés à partir de photographies.</p>
+<h3>Processus de Création</h3>
+<h4>1. Acquisition des Images</h4>
+<ul>
+<li>Prises de vue multi-angles</li>
+<li>Attention à l'éclairage</li>
+<li>Couverture complète de l'objet</li>
+</ul>
+<h4>2. Traitement Informatique</h4>
+<ul>
+<li>Alignement des photos</li>
+<li>Détection des points communs</li>
+<li>Génération d'un nuage de points dense</li>
+<li>Création du maillage 3D</li>
+<li>Application des textures</li>
+</ul>
+<h4>3. Optimisation et Partage</h4>
+<ul>
+<li>Nettoyage du modèle</li>
+<li>Simplification</li>
+<li>Export dans différents formats</li>
+<li>Publication sur des plateformes de partage</li>
+</ul>
+<h3>Exemples de Réalisations</h3>
+<h4>1. Slit Gong</h4>
+<ul>
+<li><strong>Type</strong>: Objet ethnologique</li>
+<li><strong>Objectif</strong>: Médiation culturelle</li>
+<li><strong>Technique</strong>: Numérisation 3D</li>
+</ul>
+<h4>2. Bague à Sceau</h4>
+<ul>
+<li><strong>Type</strong>: Artefact archéologique</li>
+<li><strong>Projet</strong>: Trésor d'Eauze</li>
+<li><strong>Technique</strong>: Photogrammétrie</li>
+</ul>
+<h4>3. Bague aux Camées</h4>
+<ul>
+<li><strong>Type</strong>: Objet historique</li>
+<li><strong>Projet</strong>: Documentation patrimoniale</li>
+<li><strong>Technique</strong>: Modélisation 3D</li>
+</ul>
+<h3>Séries Photographiques</h3>
+<h4>1. L'Univers des Petits Pas</h4>
+<ul>
+<li><strong>Style</strong>: Noir et Blanc</li>
+<li><strong>Thème</strong>: Exploration de la petite enfance</li>
+<li><strong>Technique</strong>: Documentation créative</li>
+</ul>
+<h4>2. Mémoire Rouillée</h4>
+<ul>
+<li><strong>Style</strong>: Archéologie industrielle</li>
+<li><strong>Thème</strong>: Transformation et passage du temps</li>
+<li><strong>Technique</strong>: Photographie documentaire</li>
+</ul>
+<h3>Technologies et Logiciels</h3>
+<ul>
+<li>Agisoft Metashape</li>
+<li>Reality Capture</li>
+<li>Blender</li>
+<li>Photoshop</li>
+<li>Techniques avancées de traitement d'image</li>
+</ul>
+<h3>Philosophie Photographique</h3>
+<p>Capturer l'essence des moments, des objets et des espaces, en révélant leurs histoires cachées à travers l'image.</p>
+                
+                
+                
+                <a href="#" class="btn back-to-top">Retour en haut</a>
+            </div>
+            
+        
+        <div class="footer">
+            <h2>Restons connectés !</h2>
+            <p>N'hésitez pas à me contacter pour discuter de projets ou simplement échanger sur nos domaines d'intérêt communs.</p>
+            
+            <div class="social-links">
+                <a href="https://votre-portfolio.com" class="social-link" target="_blank" rel="noopener">Portfolio</a>
+                <a href="https://www.linkedin.com/in/alexiafontaine" class="social-link" target="_blank" rel="noopener">LinkedIn</a>
+            </div>
+            
+            <div class="copyright">
+                <p>© 2025 - Newsletter générée automatiquement depuis mon portfolio GitHub</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+        
