@@ -46,6 +46,6 @@ jobs:
       with:
         add: 'newsletters'
         author_name: 'GitHub Actions'
-        author_email: 'actions@github.com'
+        author_email: 'fontaine.alexia8@gmail.com'
         message: 'Génération de la newsletter hebdomadaire'
         push: true
