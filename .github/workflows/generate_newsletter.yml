@@ -2,7 +2,7 @@ name: Génération de Newsletter LinkedIn
 
 on:
   schedule:
-    - cron: '0 9 * * 1'
+  - cron: '0 9 * * 1'
   workflow_dispatch:
 
 jobs:
@@ -35,8 +35,7 @@ jobs:
     
     - name: Génération de la newsletter
       run: |
-        cd ${{ github.workspace }}
-        python PORTFOLIO/scripts/newsletter_generator.py
+        python scripts/newsletter_generator.py
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
