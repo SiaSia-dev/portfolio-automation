@@ -155,7 +155,7 @@ def prepare_linkedin_content(newsletter_path):
         html_filename = filename.replace('.md', '.html')
         
         # Créer le lien GitHub vers la newsletter HTML
-        github_html_url = f"https://siasia-dev.github.io/portfolio-automation/newsletters/{html_filename}"
+        github_html_url = f"https://github.com/SiaSia-dev/portfolio-automation/blob/main/newsletters/{html_filename}"        
         # Alternative si GitHub Pages n'est pas configuré:
         # github_html_url = f"https://github.com/SiaSia-dev/portfolio-automation/blob/main/newsletters/{html_filename}"
         
