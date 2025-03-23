@@ -2,7 +2,7 @@ name: Publish to LinkedIn
 
 on:
   workflow_run:
-    workflows: ["Generate Weekly Newsletter"]
+    workflows: ["Génération de Newsletter LinkedIn"]
     types:
       - completed
   workflow_dispatch:  # Permet de lancer manuellement
