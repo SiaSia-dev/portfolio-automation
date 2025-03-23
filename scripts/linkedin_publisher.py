@@ -69,72 +69,33 @@ def refresh_access_token():
         return None
 
 def publish_to_linkedin(content):
-    """Publie un contenu sur la page d'entreprise LinkedIn"""
-    try:
-        # Obtenir ou rafraîchir le token d'accès
-        access_token = os.environ.get('LINKEDIN_ACCESS_TOKEN')
-        if not access_token:
-            logger.info("Token d'accès LinkedIn non trouvé, tentative de rafraîchissement")
-            access_token = refresh_access_token()
-            
-        if not access_token:
-            logger.error("Impossible d'obtenir un token d'accès LinkedIn valide")
-            return False
-        
-        # ID de la page d'entreprise LinkedIn
-        company_id = os.environ.get('LINKEDIN_COMPANY_ID')
-        if not company_id:
-            logger.error("Variable d'environnement LINKEDIN_COMPANY_ID manquante")
-            return False
-        
-        url = "https://api.linkedin.com/v2/ugcPosts"
-        
-        # Formater la requête pour LinkedIn avec la page d'entreprise comme auteur
-        payload = {
-            "author": f"urn:li:organization:{company_id}",
-            "lifecycleState": "PUBLISHED",
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {
-                        "text": content
-                    },
-                    "shareMediaCategory": "NONE"
-                }
-            },
-            "visibility": {
-                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-            }
-        }
-        
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {access_token}"
-        }
-        
-        response = requests.post(url, json=payload, headers=headers)
-        
-        if response.status_code in (200, 201):
-            logger.info("Publication LinkedIn réussie")
-            return True
-        elif response.status_code == 401:
-            # Token expiré, tenter de rafraîchir et réessayer
-            logger.info("Token expiré, tentative de rafraîchissement")
-            new_token = refresh_access_token()
-            if new_token:
-                headers["Authorization"] = f"Bearer {new_token}"
-                retry_response = requests.post(url, json=payload, headers=headers)
-                if retry_response.status_code in (200, 201):
-                    logger.info("Publication LinkedIn réussie après rafraîchissement du token")
-                    return True
-            
-            logger.error("Échec de la publication après rafraîchissement du token")
-            return False
-        else:
-            logger.error(f"Échec de la publication LinkedIn: {response.status_code} - {response.text}")
-            return False
-    except Exception as e:
-        logger.error(f"Erreur lors de la publication sur LinkedIn: {str(e)}")
+    # ...code existant...
+    
+    # ID de personne LinkedIn (au lieu de l'ID d'entreprise)
+    person_id = os.environ.get('LINKEDIN_PERSON_ID')
+    if not person_id:
+        logger.error("Variable d'environnement LINKEDIN_PERSON_ID manquante")
         return False
+    
+    url = "https://api.linkedin.com/v2/ugcPosts"
+    
+    # Formater la requête pour LinkedIn avec le profil personnel comme auteur
+    payload = {
+        "author": f"urn:li:person:{person_id}",  # Utiliser l'ID personnel au lieu de l'organisation
+        "lifecycleState": "PUBLISHED",
+        "specificContent": {
+            "com.linkedin.ugc.ShareContent": {
+                "shareCommentary": {
+                    "text": content
+                },
+                "shareMediaCategory": "NONE"
+            }
+        },
+        "visibility": {
+            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+        }
+    }
+    
 
 def prepare_linkedin_content(newsletter_path):
     """Prépare le contenu pour LinkedIn à partir de la newsletter"""
