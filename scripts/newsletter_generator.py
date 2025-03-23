@@ -868,6 +868,8 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
                     <h1>Newsletter Portfolio</h1>
                     <p>{display_date}</p>
                     <p>Découvrez mes derniers projets et réalisations dans cette newsletter hebdomadaire.</p>
+                    <h3> Récits visuels, horizons numériques :</h3> 
+                    <h3> Chaque newsletter, un voyage entre données, créativité et découvertes</h3>
                 </div>
             </div>
             """
