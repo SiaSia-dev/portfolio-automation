@@ -150,6 +150,15 @@ def prepare_linkedin_content(newsletter_path):
         lines = content.split('\n')
         title = lines[0].replace('# ', '') if lines and lines[0].startswith('# ') else "Newsletter Portfolio"
         
+        # Extraire le nom du fichier pour créer le lien vers la version HTML
+        filename = os.path.basename(newsletter_path)
+        html_filename = filename.replace('.md', '.html')
+        
+        # Créer le lien GitHub vers la newsletter HTML
+        github_html_url = f"https://siasia-dev.github.io/portfolio-automation/newsletters/{html_filename}"
+        # Alternative si GitHub Pages n'est pas configuré:
+        # github_html_url = f"https://github.com/SiaSia-dev/portfolio-automation/blob/main/newsletters/{html_filename}"
+        
         # Préparer un contenu attrayant pour LinkedIn
         linkedin_content = f"🔥 {title} 🔥\n\n"
         linkedin_content += "Découvrez mes derniers projets et réalisations cette semaine !\n\n"
@@ -167,6 +176,9 @@ def prepare_linkedin_content(newsletter_path):
             
             if len(projects) > 3:
                 linkedin_content += f"...et {len(projects) - 3} autres projets\n"
+        
+        # Ajouter un lien vers la newsletter complète
+        linkedin_content += f"\nConsultez la newsletter complète ici: {github_html_url}"
         
         # Ajouter un lien vers la page LinkedIn
         linkedin_content += "\nRetrouvez toutes mes newsletters sur LinkedIn: https://www.linkedin.com/company/www-linkedin-com-in-alexiafontaine"
