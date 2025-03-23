@@ -969,7 +969,7 @@ def main():
 
     if md_path:
         # Générer une version HTML avec tout le contenu intégré dans un seul fichier
-        newsletter_date = datetime.now().strftime("%d/%m/%Y")
+        newsletter_date = datetime.now().strftime("/%Y/%m/%d")
         html_path = generate_single_file_html(projects, newsletter_date, output_directory, header_image_exists)
         
         if html_path:
