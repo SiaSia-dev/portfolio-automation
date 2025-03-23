@@ -1,1 +1,1 @@
-https://git@github.com:SiaSia-dev.github.io/newsletter-portfolio
+https://SiaSia-dev.github.io/newsletter-portfolio

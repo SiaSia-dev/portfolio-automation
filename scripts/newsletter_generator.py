@@ -196,7 +196,7 @@ def copy_images_to_newsletter(portfolio_directory, output_directory):
     
     return header_image_exists
 
-def save_newsletter(content, output_directory):
+def save_newsletter(content, output_directory, file_date):
     """
     Sauvegarde la newsletter dans un fichier avec un nom horodaté.
     """
@@ -204,9 +204,8 @@ def save_newsletter(content, output_directory):
         # Créer le répertoire de sortie s'il n'existe pas
         Path(output_directory).mkdir(parents=True, exist_ok=True)
         
-        # Générer un nom de fichier avec la date
-        timestamp = datetime.now().strftime("%Y%m%d")
-        filename = f"newsletter_{timestamp}.md"
+        # Générer un nom de fichier avec la date au format YYYYMMDD
+        filename = f"newsletter_{file_date}.md"
         
         file_path = os.path.join(output_directory, filename)
         
@@ -219,17 +218,15 @@ def save_newsletter(content, output_directory):
         logger.error(f"Erreur lors de la sauvegarde de la newsletter: {e}")
         return None
 
-def generate_newsletter_content(md_files, portfolio_directory, output_directory):
+def generate_newsletter_content(md_files, portfolio_directory, output_directory, display_date):
     """
     Génère le contenu de la newsletter à partir des fichiers Markdown.
     """
     if not md_files:
         logger.warning("Aucun fichier Markdown récent trouvé")
         return "Aucun contenu récent disponible pour cette newsletter.", []
-
-    newsletter_date = datetime.now().strftime("%d/%m/%Y")
     
-    newsletter_content = f"""# Newsletter Portfolio - {newsletter_date}
+    newsletter_content = f"""# Newsletter Portfolio - {display_date}
 
 Découvrez mes derniers projets et réalisations !
 
@@ -323,7 +320,7 @@ N'hésitez pas à me contacter pour discuter de projets ou simplement échanger 
     
     return newsletter_content, projects
 
-def generate_single_file_html(projects, newsletter_date, output_directory, header_image_exists=False):
+def generate_single_file_html(projects, display_date, output_directory, file_date, header_image_exists=False):
     """
     Génère un fichier HTML unique contenant tous les projets avec leurs contenus détaillés.
     """
@@ -860,16 +857,16 @@ def generate_single_file_html(projects, newsletter_date, output_directory, heade
             </div>
             """
         
-        # Formater la date pour le nom de fichier
-        formatted_date = newsletter_date.replace('/', '')
+        # Générer le nom du fichier HTML avec le format YYYYMMDD
+        html_filename = f"newsletter_{file_date}.html"
         
-        # Générer le HTML de l'en-tête en fonction de l'existence de l'image d'en-tête
+# Générer le HTML de l'en-tête en fonction de l'existence de l'image d'en-tête
         if header_image_exists:
             header_html = f"""
             <div class="header">
                 <div class="header-content">
                     <h1>Newsletter Portfolio</h1>
-                    <p>{newsletter_date}</p>
+                    <p>{display_date}</p>
                     <p>Découvrez mes derniers projets et réalisations dans cette newsletter hebdomadaire.</p>
                 </div>
             </div>
@@ -878,7 +875,7 @@ def generate_single_file_html(projects, newsletter_date, output_directory, heade
             header_html = f"""
             <div class="header">
                 <h1>Newsletter Portfolio</h1>
-                <p>{newsletter_date}</p>
+                <p>{display_date}</p>
                 <p>Découvrez mes derniers projets et réalisations dans cette newsletter hebdomadaire.</p>
             </div>
             """
@@ -889,7 +886,7 @@ def generate_single_file_html(projects, newsletter_date, output_directory, heade
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Newsletter Portfolio - {newsletter_date}</title>
+    <title>Newsletter Portfolio - {display_date}</title>
     {css_style}
 </head>
 <body>
@@ -909,7 +906,7 @@ def generate_single_file_html(projects, newsletter_date, output_directory, heade
             <p>N'hésitez pas à me contacter pour discuter de projets ou simplement échanger sur nos domaines d'intérêt communs.</p>
             
             <div class="social-links">
-                <a href="https://votre-portfolio.com" class="social-link" target="_blank" rel="noopener">Portfolio</a>
+                <a href="https://portfolio-af-v2.netlify.app/" class="social-link" target="_blank" rel="noopener">Portfolio</a>
                 <a href="https://www.linkedin.com/in/alexiafontaine" class="social-link" target="_blank" rel="noopener">LinkedIn</a>
             </div>
             
@@ -923,7 +920,6 @@ def generate_single_file_html(projects, newsletter_date, output_directory, heade
         """
         
         # Sauvegarder le HTML
-        html_filename = f"newsletter_{formatted_date}.html"
         html_path = os.path.join(output_directory, html_filename)
         
         with open(html_path, 'w', encoding='utf-8') as f:
@@ -947,6 +943,10 @@ def main():
     logger.info(f"Recherche de fichiers Markdown récents dans {docs_directory}")
     logger.info(f"Répertoire de sortie: {output_directory}")
     
+    # Définir les formats de date
+    display_date = datetime.now().strftime("%d/%m/%Y")  # Format jour/mois/année pour l'affichage (23/03/2025)
+    file_date = datetime.now().strftime("%Y%m%d")       # Format année/mois/jour pour le nom de fichier (20250323)
+    
     # Copier toutes les images du dossier img du PORTFOLIO vers le dossier img de la newsletter
     # et vérifier si l'image d'en-tête existe
     header_image_exists = copy_images_to_newsletter(portfolio_directory, output_directory)
@@ -961,16 +961,15 @@ def main():
     else:
         logger.warning("Aucun fichier récent trouvé")
     
-    # Générer le contenu de la newsletter
-    newsletter_content, projects = generate_newsletter_content(recent_files, portfolio_directory, output_directory)
+    # Générer le contenu de la newsletter avec la date d'affichage
+    newsletter_content, projects = generate_newsletter_content(recent_files, portfolio_directory, output_directory, display_date)
     
-    # Sauvegarder la newsletter au format Markdown
-    md_path = save_newsletter(newsletter_content, output_directory)
+    # Sauvegarder la newsletter au format Markdown avec la date de fichier
+    md_path = save_newsletter(newsletter_content, output_directory, file_date)
 
     if md_path:
         # Générer une version HTML avec tout le contenu intégré dans un seul fichier
-        newsletter_date = datetime.now().strftime("/%Y/%m%d")
-        html_path = generate_single_file_html(projects, newsletter_date, output_directory, header_image_exists)
+        html_path = generate_single_file_html(projects, display_date, output_directory, file_date, header_image_exists)
         
         if html_path:
             logger.info("Newsletter générée avec succès.")

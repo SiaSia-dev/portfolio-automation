@@ -2,41 +2,11 @@
 
 Découvrez mes derniers projets et réalisations !
 
-## voyages
+## fleurs-documentation-narrative
 
 
 
-Voyages et Découvertes Sources d'Inspiration et Explorations Culturelles Image de Référence Philosophie des Voyages Les voyages comme sources inépuisables d'inspiration, de découvertes et de compréhension interculturelle. Approche Exploration attenti...
-
-[En savoir plus](#)
-
----
-
-## tresor-eauze
-
-
-
-Trésor d'Eauze : Patrimoine Numérique Interactif Présentation du Projet Un projet de valorisation du patrimoine culturel qui combine photographie, recherche historique et conception d'expériences interactives pour rendre accessibles des trésors cultu...
-
-[En savoir plus](#)
-
----
-
-## principes-fondamentaux
-
-
-
-Principes Fondamentaux Les Piliers de ma Démarche Créative et Analytique 1. Clarté : Rendre l'Impossible Compréhensible Essence Transformer le complexe en accessible Démystifier les concepts techniques Créer des ponts de compréhension Stratégies Déco...
-
-[En savoir plus](#)
-
----
-
-## suivi-pedagogique
-
-
-
-Prototype de Suivi Pédagogique Présentation du Projet Un prototype d'application conçu pour aider au suivi et à l'analyse de la progression des apprenants. Fonctionnalités Principales Suivi de la progression des apprenants Génération de rapports d'an...
+Les Fleurs : Étoiles de la Terre Capture d'Écran Prélude Botanique Dans le vaste théâtre de la nature, les fleurs émergent comme des constellations terrestres, points lumineux parsemant les prairies, les jardins et les sous-bois. Chacune raconte une ...
 
 [En savoir plus](#)
 
@@ -52,11 +22,41 @@ Sources d'Inspiration : Les Voyages Image Représentative Philosophie des Voyage
 
 ---
 
-## photographie
+## photogrammetrie
 
 
 
-Photographie Exploration Visuelle et Patrimoniale Image de Référence Blog Scientifique : ARCHAEDYN Projet de Recherche Archéologique Analyse des dynamiques territoriales sur 7 millénaires Du Néolithique au Moyen Âge Techniques de pointe en analyse sp...
+Photogrammétrie : Art de la Modélisation 3D Essence de la Technique Une méthode de création de modèles 3D précis à partir de photographies, préservant la géométrie et les textures des objets. Processus Détaillé 1. Acquisition des Images Stratégies de...
+
+[En savoir plus](#)
+
+---
+
+## blog-scientifique
+
+
+
+Blog Scientifique : ARCHAEDYN Image Représentative Contexte du Projet Un projet de recherche archéologique innovant explorant les dynamiques territoriales sur 7 millénaires. Objectifs de Recherche Analyser l'occupation humaine Étudier les transformat...
+
+[En savoir plus](#)
+
+---
+
+## approche-integree-creation
+
+
+
+Une Approche Intégrée de Création de Contenus Image Représentative Concept Fondamental Une démarche de création qui transcende les frontières traditionnelles entre différents médias et disciplines. Principes Directeurs Synergie Multidisciplinaire Fus...
+
+[En savoir plus](#)
+
+---
+
+## parcours-data-communication
+
+
+
+Parcours Data & Communication Digitale Image Représentative Évolution Professionnelle Un parcours caractérisé par une convergence constante entre compétences analytiques et créatives. Dimensions Professionnelles Formation et Expertise Systèmes d'Info...
 
 [En savoir plus](#)
 

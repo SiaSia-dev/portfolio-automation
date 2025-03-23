@@ -17,17 +17,36 @@ logger = logging.getLogger('linkedin_publisher')
 
 class LinkedInPublisher:
     def __init__(self, access_token=None):
+        """
+        Initialise la classe de publication LinkedIn.
+        
+        Args:
+            access_token (str, optional): Token d'accès LinkedIn. 
+                                          Si non fourni, tentera de le récupérer des variables d'environnement.
+        """
+        # Récupérer le token d'accès
         self.access_token = access_token or os.environ.get('LINKEDIN_ACCESS_TOKEN')
+        
+        # Nettoyer et valider le token
+        if self.access_token:
+            self.access_token = self.access_token.strip()
+            
         if not self.access_token:
             logger.error("Token d'accès LinkedIn non trouvé")
             raise ValueError("Token d'accès LinkedIn requis")
         
+        # Récupérer l'ID de personne
         self.person_id = os.environ.get('LINKEDIN_PERSON_ID')
+        
+        # Nettoyer et valider l'ID de personne
+        if self.person_id:
+            self.person_id = self.person_id.strip()
+            
         if not self.person_id:
             logger.error("ID de personne LinkedIn non trouvé")
             raise ValueError("ID de personne LinkedIn requis")
         
-        # Créer un répertoire pour stocker les hachages des publications
+        # Gestion du cache des publications
         self.cache_dir = Path('./.linkedin_cache')
         self.cache_dir.mkdir(exist_ok=True)
         self.cache_file = self.cache_dir / 'published_posts.pkl'
@@ -36,7 +55,12 @@ class LinkedInPublisher:
         self.published_hashes = self._load_published_hashes()
 
     def _load_published_hashes(self):
-        """Charge les hachages des publications précédentes depuis le fichier de cache."""
+        """
+        Charge les hachages des publications précédentes depuis le fichier de cache.
+        
+        Returns:
+            set: Ensemble des hachages de publications précédentes
+        """
         if self.cache_file.exists():
             try:
                 with open(self.cache_file, 'rb') as f:
@@ -47,7 +71,12 @@ class LinkedInPublisher:
         return set()
 
     def _save_published_hash(self, content_hash):
-        """Sauvegarde le hachage d'une publication dans le fichier de cache."""
+        """
+        Sauvegarde le hachage d'une publication dans le fichier de cache.
+        
+        Args:
+            content_hash (str): Hachage du contenu de la publication
+        """
         self.published_hashes.add(content_hash)
         try:
             with open(self.cache_file, 'wb') as f:
@@ -55,51 +84,62 @@ class LinkedInPublisher:
         except Exception as e:
             logger.warning(f"Erreur lors de la sauvegarde du cache: {e}")
 
-    def _generate_content_hash(self, text, image_path=None):
-        """Génère un hachage unique pour le contenu de la publication."""
-        content = text
+    def _generate_content_hash(self, text):
+        """
+        Génère un hachage unique pour le contenu de la publication.
         
-        # Ajouter le contenu de l'image au hachage si présent
-        if image_path and os.path.exists(image_path):
-            try:
-                with open(image_path, 'rb') as f:
-                    image_content = f.read()
-                content += hashlib.md5(image_content).hexdigest()
-            except Exception as e:
-                logger.warning(f"Erreur lors de la lecture de l'image: {e}")
+        Args:
+            text (str): Contenu textuel de la publication
         
-        # Générer le hachage du contenu
-        return hashlib.md5(content.encode('utf-8')).hexdigest()
+        Returns:
+            str: Hachage MD5 du contenu
+        """
+        return hashlib.md5(text.encode('utf-8')).hexdigest()
 
-    def is_duplicate(self, text, image_path=None):
-        """Vérifie si une publication est un doublon."""
-        content_hash = self._generate_content_hash(text, image_path)
+    def is_duplicate(self, text):
+        """
+        Vérifie si une publication est un doublon.
+        
+        Args:
+            text (str): Contenu textuel de la publication
+        
+        Returns:
+            bool: True si le contenu est un doublon, False sinon
+        """
+        content_hash = self._generate_content_hash(text)
         return content_hash in self.published_hashes
 
     def make_unique(self, text):
-        """Rend le contenu unique en ajoutant un horodatage."""
+        """
+        Rend le contenu unique en ajoutant un horodatage.
+        
+        Args:
+            text (str): Contenu original de la publication
+        
+        Returns:
+            str: Contenu modifié avec un horodatage
+        """
         timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         return f"{text}\n\nPublié le {timestamp}"
 
-    def publish_text_post(self, text, public_url, image_path=None, force_unique=False):
+    def publish_text_post(self, text, public_url, force_unique=False):
         """
         Publie un post texte sur LinkedIn avec un lien vers une page web.
         
         Args:
             text (str): Le texte à publier
             public_url (str): URL publique de la newsletter
-            image_path (str, optional): Chemin vers une image à joindre
             force_unique (bool): Force l'ajout d'un horodatage pour rendre le contenu unique
         
         Returns:
-            dict: Réponse de l'API LinkedIn
+            dict: Réponse de l'API LinkedIn ou None en cas d'échec
         """
-        # Vérifier si le contenu est un doublon
+        # Gestion du contenu dupliqué
         original_text = text
         
         if force_unique:
             text = self.make_unique(text)
-        elif self.is_duplicate(text, image_path):
+        elif self.is_duplicate(text):
             logger.warning("Contenu en double détecté, ajout d'un horodatage")
             text = self.make_unique(text)
         
@@ -139,85 +179,43 @@ class LinkedInPublisher:
             }
         }
         
-        # Si une image est fournie, l'ajouter au post (remplace le lien)
-        if image_path and os.path.exists(image_path):
-            try:
-                # Initialiser le téléchargement de l'image
-                init_upload_url = "https://api.linkedin.com/v2/assets?action=registerUpload"
-                init_upload_data = {
-                    "registerUploadRequest": {
-                        "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
-                        "owner": f"urn:li:person:{self.person_id}",
-                        "serviceRelationships": [{
-                            "relationshipType": "OWNER",
-                            "identifier": "urn:li:userGeneratedContent"
-                        }]
-                    }
-                }
-                
-                init_upload_response = requests.post(init_upload_url, headers=headers, json=init_upload_data)
-                
-                if init_upload_response.status_code != 200:
-                    logger.error(f"Échec de l'initialisation du téléchargement: {init_upload_response.status_code} - {init_upload_response.text}")
-                    # Continuer avec le lien sans image
-                else:
-                    upload_info = init_upload_response.json()
-                    
-                    # Extraire les informations nécessaires pour le téléchargement
-                    upload_url = upload_info['value']['uploadMechanism']['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest']['uploadUrl']
-                    asset_id = upload_info['value']['asset']
-                    
-                    # Télécharger l'image
-                    with open(image_path, 'rb') as image_file:
-                        upload_response = requests.put(
-                            upload_url,
-                            data=image_file,
-                            headers={
-                                'Authorization': f'Bearer {self.access_token}'
-                            }
-                        )
-                    
-                    if upload_response.status_code != 201:
-                        logger.error(f"Échec du téléchargement de l'image: {upload_response.status_code} - {upload_response.text}")
-                        # Continuer avec le lien sans image
-                    else:
-                        # Modifier le post pour inclure l'image avec le lien
-                        post_data['specificContent']['com.linkedin.ugc.ShareContent']['media'][0]['thumbnails'] = [{
-                            "url": asset_id
-                        }]
-                
-            except Exception as e:
-                logger.error(f"Erreur lors du traitement de l'image: {e}")
-                # Continuer avec le lien sans image
-        
-        # Envoyer la requête
+        # Tentatives de publication avec gestion des erreurs
         max_retries = 3
         retry_count = 0
         
         while retry_count < max_retries:
             try:
                 post_url = "https://api.linkedin.com/v2/ugcPosts"
+                
+                # Journalisation de la requête
+                logger.debug(f"Envoi de la requête POST à {post_url}")
+                
+                # Envoi de la requête
                 response = requests.post(post_url, headers=headers, json=post_data)
                 
+                # Gestion des différents codes de réponse
                 if response.status_code == 201:
                     logger.info("Publication réussie sur LinkedIn")
                     
                     # Sauvegarder le hachage du contenu
-                    content_hash = self._generate_content_hash(original_text, image_path)
+                    content_hash = self._generate_content_hash(original_text)
                     self._save_published_hash(content_hash)
                     
                     return response.json()
+                
                 elif response.status_code == 429:  # Rate limit
                     retry_count += 1
                     wait_time = min(2 ** retry_count, 60)  # Exponential backoff
                     logger.warning(f"Rate limit atteint, nouvelle tentative dans {wait_time} secondes...")
                     time.sleep(wait_time)
+                
                 elif response.status_code == 422:  # Duplicate content
                     # Rendre le contenu unique et réessayer
                     text = self.make_unique(text + f" [{retry_count}]")
                     post_data['specificContent']['com.linkedin.ugc.ShareContent']['shareCommentary']['text'] = text
                     retry_count += 1
                     logger.warning(f"Contenu en double détecté, nouvelle tentative avec un texte modifié...")
+                
                 else:
                     logger.error(f"Échec de la publication LinkedIn: {response.status_code} - {response.text}")
                     return None
@@ -234,14 +232,19 @@ class LinkedInPublisher:
         logger.error(f"Échec après {max_retries} tentatives de publication")
         return None
 
-# Fonction principale
 def main():
+    """
+    Fonction principale pour générer et publier la newsletter sur LinkedIn.
+    
+    Returns:
+        bool: True si la publication est réussie, False sinon
+    """
     try:
-        # Récupérer le contenu de la newsletter la plus récente
+        # Récupérer le répertoire des newsletters
         newsletters_dir = os.environ.get('NEWSLETTERS_DIR', './newsletters')
         
         # Recherche du fichier HTML le plus récent
-        html_files = [f for f in os.listdir(newsletters_dir) if f.endswith('.html')]
+        html_files = [f for f in os.listdir(newsletters_dir) if f.startswith('newsletter_') and f.endswith('.html')]
         
         if not html_files:
             logger.error("Aucun fichier HTML de newsletter trouvé")
@@ -263,18 +266,12 @@ def main():
         
         if not public_url:
             # Utiliser une URL par défaut si pas trouvée
-            username = os.environ.get('GITHUB_USERNAME', 'votre-username')
+            username = os.environ.get('GITHUB_USERNAME', 'SiaSia-dev')
             repo_name = os.environ.get('GITHUB_REPO', 'newsletter-portfolio')
             public_url = f"https://{username}.github.io/{repo_name}"
             logger.warning(f"Aucune URL trouvée, utilisation de l'URL par défaut: {public_url}")
         
-        # Chemin de l'image à utiliser pour la publication
-        image_path = os.path.join(newsletters_dir, 'img', 'header-bg.jpg')
-        if not os.path.exists(image_path):
-            logger.warning("Image d'en-tête non trouvée, publication sans image")
-            image_path = None
-        
-        # Lire le contenu du fichier HTML pour extraire uniquement le titre et un peu de contenu
+        # Lire le contenu du fichier HTML
         try:
             from bs4 import BeautifulSoup
             
@@ -289,7 +286,11 @@ def main():
             date_text = date.text.strip() if date else datetime.now().strftime("%d/%m/%Y")
             
             # Extraire les titres des projets
-            project_titles = [h2.text.strip() for h2 in soup.find_all('h2', class_='project-title')]
+            project_titles = (
+                [h2.text.strip() for h2 in soup.find_all('h2', class_='project-title')] or
+                [h2.text.strip() for h2 in soup.select('.project-card h2')] or
+                [h2.text.strip() for h2 in soup.find_all('h2')][:5]  # Limiter aux 5 premiers
+            )
             
             # Créer le contenu de la publication LinkedIn
             post_text = f"""🚀 {title} - {date_text} 🚀
@@ -297,15 +298,19 @@ def main():
 Découvrez mes derniers projets et réalisations dans cette nouvelle édition de ma newsletter portfolio !
 
 📌 Au sommaire:
-{"".join([f"- {title}\n" for title in project_titles])}
+"""
+            # Ajouter les titres des projets
+            for proj_title in project_titles:
+                post_text += f"- {proj_title}\n"
 
+            post_text += """
 Consultez la version complète pour plus de détails sur chaque projet.
 
 #portfolio #developpeur #tech #projets #newsletter"""
             
             # Créer l'instance LinkedIn Publisher et publier
             publisher = LinkedInPublisher()
-            result = publisher.publish_text_post(post_text, public_url, image_path)
+            result = publisher.publish_text_post(post_text, public_url)
             
             if result:
                 logger.info("Newsletter publiée avec succès sur LinkedIn")
@@ -324,7 +329,6 @@ Consultez la version complète pour plus de détails sur chaque projet.
 
 if __name__ == "__main__":
     success = main()
-    if not success:
-        logger.error("Le script s'est terminé avec des erreurs")
-    else:
-        logger.info("Publication LinkedIn terminée avec succès")
+    exit_code = 0 if success else 1
+    logger.info(f"Script terminé. Code de sortie: {exit_code}")
+    exit(exit_code)
