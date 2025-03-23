@@ -81,7 +81,7 @@ def publish_to_linkedin(content):
     
     # Formater la requête pour LinkedIn avec le profil personnel comme auteur
     payload = {
-        "author": f"urn:li:person:{person_id}",  # Utiliser l'ID personnel au lieu de l'organisation
+        "author": f"urn:li:person:{LINKEDIN_PERSON_ID}",  # Utiliser l'ID personnel au lieu de l'organisation
         "lifecycleState": "PUBLISHED",
         "specificContent": {
             "com.linkedin.ugc.ShareContent": {
