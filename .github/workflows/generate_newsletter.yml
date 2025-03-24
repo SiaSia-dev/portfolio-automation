@@ -216,6 +216,7 @@ jobs:
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
+        repository: SiaSia-dev/newsletter-portfolio
         folder: newsletter-portfolio
         token: ${{ secrets.DEPLOY_TOKEN }}
         branch: gh-pages

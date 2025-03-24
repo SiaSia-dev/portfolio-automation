@@ -25,7 +25,7 @@ class LinkedInPublisher:
                                           Si non fourni, tentera de le récupérer des variables d'environnement.
         """
         # Récupérer le token d'accès
-        self.access_token = access_token or os.environ.get('LINKEDIN_ACCESS_TOKEN')
+        self.access_token = access_token or os.environ.get('DEPLOY_TOKEN')
         
         # Nettoyer et valider le token
         if self.access_token:
