@@ -167,6 +167,14 @@ jobs:
         cd newsletter-portfolio
         find . -type f -not -path "*/\.*" | sort
     
+    - name: Préparer le déploiement
+      run: |
+        cd newsletter-portfolio
+        git config --global user.name 'GitHub Actions Bot'
+        git config --global user.email 'actions@github.com'
+        git add .
+        git commit -m "Déploiement de la newsletter" || echo "Pas de nouveaux fichiers à committer"
+
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
