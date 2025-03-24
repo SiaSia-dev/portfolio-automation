@@ -278,10 +278,11 @@ def create_index_and_archives(output_directory, file_date, display_date):
                     mod_time = datetime.fromtimestamp(os.path.getmtime(os.path.join(output_directory, file)))
                     formatted_date = mod_time.strftime("%d/%m/%Y")
                 
-                archives_content += f'        <li><a href="./{file}">Newsletter du {formatted_date}</a></li>\n'
+                # Modification ici : Suppression du './' pour résoudre les problèmes de lien
+                archives_content += f'        <li><a href="{file}">Newsletter du {formatted_date}</a></li>\n'
         
         archives_content += """    </ul>
-    <p><a href="./latest.html">Retour à la dernière newsletter</a></p>
+    <p><a href="latest.html">Retour à la dernière newsletter</a></p>
 </body>
 </html>
 """

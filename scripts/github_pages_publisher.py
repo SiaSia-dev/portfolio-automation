@@ -36,10 +36,6 @@ class GithubPagesPublisher:
         if not self.access_token:
             logger.error("Aucun token d'accès GitHub trouvé")
             raise ValueError("Token d'accès GitHub requis")
-        
-        # Générer un nom de dossier temporaire unique
-        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-        self.temp_dir = Path(f"./gh_pages_temp_{random_suffix}")
 
     def _run_git_command(self, command, cwd=None, capture_output=True):
         """
@@ -70,7 +66,7 @@ class GithubPagesPublisher:
 
     def publish_newsletter(self, html_file_path, output_name=None):
         """
-        Publie un fichier HTML de newsletter sur GitHub Pages.
+        Publie un fichier HTML de newsletter sur GitHub Pages en utilisant le dépôt local déjà cloné.
         
         Args:
             html_file_path (str): Chemin vers le fichier HTML de la newsletter
@@ -87,78 +83,58 @@ class GithubPagesPublisher:
             logger.error(f"Fichier non trouvé : {html_file_path}")
             return public_url
         
-        # Nom de sortie par défaut
-        output_name = output_name or "index.html"
-        
-        # Créer le répertoire temporaire
-        self.temp_dir.mkdir(parents=True, exist_ok=True)
-        
         try:
-            # Séquence de commandes Git
-            git_commands = [
-                # Initialiser le dépôt
-                ["git", "init"],
+            # Utiliser directement le dépôt local
+            repo_dir = "./newsletter-portfolio"
+            
+            logger.info(f"Utilisation du dépôt local : {repo_dir}")
+            
+            # Vérifier l'existence du dépôt local
+            if not os.path.exists(repo_dir):
+                logger.error(f"Le dépôt local {repo_dir} n'existe pas")
+                return public_url
                 
-                # Configurer l'identité Git
-                ["git", "config", "user.name", "Newsletter Publisher"],
-                ["git", "config", "user.email", "newsletter@example.com"],
+            # Configurer l'identité Git
+            self._run_git_command(["git", "config", "user.name", "Newsletter Publisher"], cwd=repo_dir)
+            self._run_git_command(["git", "config", "user.email", "newsletter@example.com"], cwd=repo_dir)
+            
+            # S'assurer que nous sommes sur la bonne branche
+            self._run_git_command(["git", "checkout", "gh-pages"], cwd=repo_dir)
+            
+            logger.info("Vérification des fichiers à publier...")
+            
+            # Lister les fichiers dans le dépôt
+            newsletters_dir = os.path.join(repo_dir, "newsletters")
+            if os.path.exists(newsletters_dir):
+                all_files = os.listdir(newsletters_dir)
+                logger.info(f"Fichiers existants dans {newsletters_dir}: {all_files}")
+            else:
+                logger.warning(f"Le dossier {newsletters_dir} n'existe pas dans le dépôt")
+            
+            # Ajouter tous les fichiers
+            self._run_git_command(["git", "add", "."], cwd=repo_dir)
+            
+            # Vérifier s'il y a des modifications à committer
+            status_result = self._run_git_command(["git", "status", "--porcelain"], cwd=repo_dir)
+            
+            if status_result.stdout.strip():
+                # Il y a des modifications, on les commit et les push
+                commit_message = f"Mise à jour de la newsletter - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                self._run_git_command(["git", "commit", "-m", commit_message], cwd=repo_dir)
                 
-                # Ajouter le dépôt distant avec authentification
-                ["git", "remote", "add", "origin", 
-                 f"https://{self.access_token}@github.com/SiaSia-dev/newsletter-portfolio.git"],
+                # Push des modifications
+                push_command = ["git", "push", "origin", "gh-pages"]
+                self._run_git_command(push_command, cwd=repo_dir)
                 
-                # Récupérer la branche gh-pages
-                ["git", "fetch", "origin", "gh-pages"],
-                ["git", "checkout", "gh-pages"]
-            ]
+                logger.info(f"Newsletter publiée avec succès sur {public_url}")
+            else:
+                logger.info("Aucune modification à publier")
             
-            # Exécuter les commandes Git
-            for cmd in git_commands:
-                self._run_git_command(cmd, cwd=self.temp_dir)
-            
-            # Copier le fichier HTML
-            dest_path = self.temp_dir / output_name
-            shutil.copy2(html_file_path, dest_path)
-            
-            # Gérer les images
-            img_src_dir = os.path.join(os.path.dirname(html_file_path), "img")
-            img_dest_dir = self.temp_dir / "img"
-            
-            if os.path.exists(img_src_dir):
-                img_dest_dir.mkdir(exist_ok=True)
-                
-                # Copier toutes les images
-                for file in os.listdir(img_src_dir):
-                    src_file = os.path.join(img_src_dir, file)
-                    dest_file = img_dest_dir / file
-                    if os.path.isfile(src_file):
-                        shutil.copy2(src_file, dest_file)
-            
-            # Commandes Git finales
-            final_commands = [
-                ["git", "add", "."],
-                ["git", "commit", "-m", f"Mise à jour de la newsletter - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"],
-                ["git", "push", "-f", "origin", "gh-pages"]
-            ]
-            
-            # Exécuter les commandes finales
-            for cmd in final_commands:
-                self._run_git_command(cmd, cwd=self.temp_dir)
-            
-            logger.info(f"Newsletter publiée avec succès sur {public_url}")
             return public_url
-        
+            
         except Exception as e:
             logger.error(f"Erreur lors de la publication : {e}")
             return public_url
-        
-        finally:
-            # Nettoyer le dossier temporaire
-            try:
-                if self.temp_dir.exists():
-                    shutil.rmtree(self.temp_dir)
-            except Exception as e:
-                logger.warning(f"Impossible de supprimer le dossier temporaire : {e}")
 
 def main():
     """
@@ -166,7 +142,8 @@ def main():
     """
     try:
         # Récupérer le répertoire des newsletters
-        newsletters_dir = os.environ.get('NEWSLETTERS_DIR', './newsletters')
+        # Utiliser le dossier des newsletters dans le dépôt newsletter-portfolio
+        newsletters_dir = os.environ.get('NEWSLETTERS_DIR', './newsletter-portfolio/newsletters')
         
         # Message de débogage
         logger.info(f"Recherche de fichiers HTML dans le répertoire: {newsletters_dir}")

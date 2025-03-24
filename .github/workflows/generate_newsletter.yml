@@ -32,6 +32,7 @@ jobs:
         path: newsletter-portfolio
         token: ${{ secrets.DEPLOY_TOKEN }}
         ref: gh-pages
+        persist-credentials: true
     
     - name: Configuration de Python
       uses: actions/setup-python@v4
@@ -49,7 +50,7 @@ jobs:
         echo "Génération de la newsletter..."
         python scripts/newsletter_generator.py
       env:
-        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO/docs
+        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         CONTENT_COUNT: 6
         REQUIRE_YAML: false
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
@@ -64,27 +65,40 @@ jobs:
     
     # Préparation du dossier de destination
     - name: Préparer le dossier de destination
-      run: mkdir -p newsletter-portfolio/newsletters
+      run: |
+        mkdir -p newsletter-portfolio/newsletters
+        echo "Contenu du dossier newsletter-portfolio/newsletters (avant) :"
+        ls -la newsletter-portfolio/newsletters/ || echo "Le dossier est vide"
     
     # Copie des fichiers HTML
     - name: Copier les fichiers HTML
       run: |
-        cp -f newsletters/*.html newsletter-portfolio/newsletters/ || echo "Aucun fichier HTML à copier"
+        echo "Copie des fichiers HTML..."
+        cp -fv newsletters/*.html newsletter-portfolio/newsletters/ || echo "Aucun fichier HTML à copier"
+        echo "Contenu du dossier newsletter-portfolio/newsletters (après copie HTML) :"
+        ls -la newsletter-portfolio/newsletters/
     
     # Copie des images
     - name: Copier les images
       run: |
         if [ -d "newsletters/img" ]; then
+          echo "Copie des images..."
           mkdir -p newsletter-portfolio/newsletters/img
-          cp -rf newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image à copier"
+          cp -rfv newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image à copier"
+          echo "Contenu du dossier newsletter-portfolio/newsletters/img :"
+          ls -la newsletter-portfolio/newsletters/img/
+        else
+          echo "Le dossier newsletters/img n'existe pas"
         fi
     
     # Publication sur GitHub Pages
     - name: Publier sur GitHub Pages
       run: |
+        echo "Publication sur GitHub Pages..."
         python scripts/github_pages_publisher.py
       env:
         GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        NEWSLETTERS_DIR: ${{ github.workspace }}/newsletter-portfolio/newsletters
     
     # Notification email
     - name: Envoyer une notification par email
