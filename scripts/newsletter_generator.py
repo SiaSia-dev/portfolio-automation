@@ -1001,6 +1001,157 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
         logger.error(f"Erreur lors de la génération HTML: {e}")
         return None
 
+def create_index_and_archives(output_directory, file_date, display_date):
+    """
+    Crée les fichiers index.html, latest.html et archives.html.
+    
+    Args:
+        output_directory (str): Répertoire où seront sauvegardés les fichiers
+        file_date (str): Date au format YYYYMMDD
+        display_date (str): Date formatée pour l'affichage
+    
+    Returns:
+        bool: True si la création a réussi, False sinon
+    """
+    try:
+        # Créer le dossier de sortie s'il n'existe pas
+        Path(output_directory).mkdir(parents=True, exist_ok=True)
+        
+        # 1. Créer l'index.html à la racine
+        # Obtenir le répertoire parent de output_directory
+        parent_dir = os.path.dirname(output_directory)
+        index_path = os.path.join(parent_dir, "index.html")
+        
+        index_content = """<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Récits visuels, horizons numériques</title>
+    <meta http-equiv="refresh" content="0;url=./newsletters/latest.html">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+        }
+        p {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>Récits visuels, horizons numériques</h1>
+    <p>Redirection vers la dernière newsletter...</p>
+    <p><a href="./newsletters/latest.html">Cliquez ici si vous n'êtes pas redirigé automatiquement</a></p>
+</body>
+</html>
+"""
+        with open(index_path, 'w', encoding='utf-8') as f:
+            f.write(index_content)
+        logger.info(f"Index.html créé: {index_path}")
+        
+        # 2. Créer le fichier .nojekyll
+        nojekyll_path = os.path.join(parent_dir, ".nojekyll")
+        with open(nojekyll_path, 'w') as f:
+            f.write("")
+        logger.info(f"Fichier .nojekyll créé: {nojekyll_path}")
+        
+        # 3. Créer latest.html qui pointe vers la dernière newsletter
+        # Trouver le fichier HTML le plus récent
+        html_files = [f for f in os.listdir(output_directory) if f.endswith('.html') and not f in ["latest.html", "archives.html"]]
+        if not html_files:
+            logger.error("Aucun fichier HTML de newsletter trouvé")
+            return False
+        
+        # Trier par date de modification (le plus récent en premier)
+        html_files.sort(key=lambda f: os.path.getmtime(os.path.join(output_directory, f)), reverse=True)
+        latest_html = html_files[0]
+        
+        # Copier le contenu de la dernière newsletter
+        latest_path = os.path.join(output_directory, "latest.html")
+        shutil.copy2(os.path.join(output_directory, latest_html), latest_path)
+        logger.info(f"Fichier latest.html créé (pointant vers {latest_html})")
+        
+        # 4. Créer archives.html
+        archives_path = os.path.join(output_directory, "archives.html")
+        
+        archives_content = """<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archives - Récits visuels, horizons numériques</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        a {
+            text-decoration: none;
+            color: #0366d6;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Archives des newsletters</h1>
+    <ul>
+"""
+        
+        # Ajouter les liens vers toutes les newsletters
+        for file in sorted(html_files, key=lambda f: os.path.getmtime(os.path.join(output_directory, f)), reverse=True):
+            if file not in ["archives.html", "latest.html"]:
+                # Extraire la date du nom de fichier
+                date_match = re.search(r'newsletter_(\d{4})(\d{2})(\d{2})', file)
+                if date_match:
+                    year, month, day = date_match.groups()
+                    formatted_date = f"{day}/{month}/{year}"
+                else:
+                    # Utiliser la date de modification si le format du nom ne correspond pas
+                    mod_time = datetime.fromtimestamp(os.path.getmtime(os.path.join(output_directory, file)))
+                    formatted_date = mod_time.strftime("%d/%m/%Y")
+                
+                archives_content += f'        <li><a href="./{file}">Newsletter du {formatted_date}</a></li>\n'
+        
+        archives_content += """    </ul>
+    <p><a href="../index.html">Retour à la dernière newsletter</a></p>
+</body>
+</html>
+"""
+        
+        with open(archives_path, 'w', encoding='utf-8') as f:
+            f.write(archives_content)
+        logger.info(f"Fichier archives.html créé: {archives_path}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la création des fichiers index et archives: {e}")
+        return False
+
+
 def main():
     """
     Fonction principale du générateur de newsletter.
@@ -1009,6 +1160,11 @@ def main():
     portfolio_directory = os.environ.get('PORTFOLIO_DIR', '../PORTFOLIO')
     docs_directory = os.path.join(portfolio_directory, 'docs')
     output_directory = os.environ.get('OUTPUT_DIR', './newsletters')
+    
+    # Variables de contrôle pour la création des fichiers supplémentaires
+    create_index = os.environ.get('CREATE_INDEX', 'true').lower() == 'true'
+    create_latest = os.environ.get('CREATE_LATEST', 'true').lower() == 'true'
+    create_archives = os.environ.get('CREATE_ARCHIVES', 'true').lower() == 'true'
     
     logger.info(f"Recherche de fichiers Markdown récents dans {docs_directory}")
     logger.info(f"Répertoire de sortie: {output_directory}")
@@ -1022,7 +1178,11 @@ def main():
     header_image_exists = copy_images_to_newsletter(portfolio_directory, output_directory)
     
     # Récupérer les fichiers Markdown récents
-    recent_files = get_recent_md_files(docs_directory)
+    max_count = int(os.environ.get('CONTENT_COUNT', '6'))
+    require_yaml = os.environ.get('REQUIRE_YAML', 'false').lower() == 'true'
+    
+    # Ajuster la fonction get_recent_md_files si nécessaire pour prendre en compte REQUIRE_YAML
+    recent_files = get_recent_md_files(docs_directory, max_count=max_count)
     
     if recent_files:
         logger.info(f"Nombre de fichiers récents trouvés: {len(recent_files)}")
@@ -1037,6 +1197,7 @@ def main():
     # Sauvegarder la newsletter au format Markdown avec la date de fichier
     md_path = save_newsletter(newsletter_content, output_directory, file_date)
 
+    success = False
     if md_path:
         # Générer une version HTML avec tout le contenu intégré dans un seul fichier
         html_path = generate_single_file_html(projects, display_date, output_directory, file_date, header_image_exists)
@@ -1044,10 +1205,17 @@ def main():
         if html_path:
             logger.info("Newsletter générée avec succès.")
             logger.info(f"Ouvrez {html_path} dans votre navigateur pour voir le résultat.")
+            success = True
         else:
             logger.error("Erreur lors de la génération de la version HTML.")
     
+    # Créer les fichiers index.html, latest.html et archives.html si demandé
+    if success and (create_index or create_latest or create_archives):
+        logger.info("Création des fichiers index, latest et archives...")
+        create_index_and_archives(output_directory, file_date, display_date)
+    
     logger.info("Génération de la newsletter terminée")
+    return success
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,7 @@
 name: Génération et Déploiement de Newsletter
-
 on:
   schedule:
-    - cron: '0 9 * * 1'  # Tous les lundis à 9h00
+    - cron: '0 9 * * 5'  # Tous les vendredis à 9h00
   workflow_dispatch:     # Permet le déclenchement manuel
 
 # Permissions nécessaires pour écrire dans le repo et déployer GitHub Pages
@@ -14,7 +13,6 @@ permissions:
 jobs:
   generate-newsletter:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout du dépôt portfolio-automation
       uses: actions/checkout@v3
@@ -27,6 +25,14 @@ jobs:
         token: ${{ secrets.DEPLOY_TOKEN }}
         ref: main 
     
+    - name: Checkout du dépôt newsletter-portfolio
+      uses: actions/checkout@v3
+      with:
+        repository: SiaSia-dev/newsletter-portfolio
+        path: newsletter-portfolio
+        token: ${{ secrets.DEPLOY_TOKEN }}
+        ref: gh-pages
+    
     - name: Configuration de Python
       uses: actions/setup-python@v4
       with:
@@ -36,125 +42,48 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
-
+    
     - name: Exécuter le générateur de newsletter
       run: |
         python scripts/newsletter_generator.py
       env:
-        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
-        OUTPUT_DIR: ${{ github.workspace }}/newsletters
+        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO/docs
+        CONTENT_COUNT: 6
+        REQUIRE_YAML: false
+        OUTPUT_DIR: ${{ github.workspace }}/newsletter-portfolio/newsletters
+        CREATE_INDEX: true
+        CREATE_LATEST: true
+        CREATE_ARCHIVES: true
         
-    - name: Création de l'index et de la structure du site
-      run: |
-        # Création d'un fichier index.html à la racine qui redirige vers la dernière newsletter
-        cat > newsletter-portfolio/index.html << 'EOF'
-        <!DOCTYPE html>
-        <html lang="fr">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Récits visuels, horizons numériques</title>
-            <meta http-equiv="refresh" content="0;url=./newsletters/latest.html">
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    text-align: center;
-                    padding: 40px;
-                    max-width: 800px;
-                    margin: 0 auto;
-                }
-                h1 {
-                    color: #333;
-                }
-                p {
-                    color: #666;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Récits visuels, horizons numériques</h1>
-            <p>Redirection vers la dernière newsletter...</p>
-            <p><a href="./newsletters/latest.html">Cliquez ici si vous n'êtes pas redirigé automatiquement</a></p>
-        </body>
-        </html>
-        EOF
-        
-        # Création d'un fichier .nojekyll pour désactiver le traitement Jekyll
-        touch newsletter-portfolio/.nojekyll
-        
-        # Création d'un lien symbolique de la dernière newsletter
-        LATEST=$(find newsletters -name "*.html" -type f | sort -r | head -1)
-        if [ -n "$LATEST" ]; then
-          echo "Dernière newsletter trouvée: $LATEST"
-          cp "$LATEST" newsletter-portfolio/newsletters/latest.html
-        else
-          echo "ERREUR: Aucune newsletter trouvée dans le répertoire newsletters/"
-          # Créer un fichier de secours si aucune newsletter n'est trouvée
-          echo "<html><body><h1>Aucune newsletter disponible</h1></body></html>" > newsletter-portfolio/newsletters/latest.html
-        fi
-        
-        # Création d'une page d'archive
-        cat > newsletter-portfolio/newsletters/archives.html << 'EOF'
-        <!DOCTYPE html>
-        <html lang="fr">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Archives - Récits visuels, horizons numériques</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 40px;
-                }
-                h1 {
-                    color: #333;
-                }
-                ul {
-                    list-style-type: none;
-                    padding: 0;
-                }
-                li {
-                    margin-bottom: 10px;
-                    padding: 10px;
-                    border-bottom: 1px solid #eee;
-                }
-                a {
-                    text-decoration: none;
-                    color: #0366d6;
-                }
-                a:hover {
-                    text-decoration: underline;
-                }
-            </style>
-        </head>
-        <body>
-            <h1>Archives des newsletters</h1>
-            <ul>
-        EOF
-        
-        # Ajouter les liens des newsletters
-        for file in $(find newsletters -name "*.html" -type f | grep -v "archives.html" | grep -v "latest.html" | sort -r); do
-            filename=$(basename "$file")
-            date=$(echo "$filename" | sed -E 's/newsletter_([0-9]{4})([0-9]{2})([0-9]{2}).*/\1-\2-\3/')
-            echo "<li><a href=\"./$filename\">Newsletter du $date</a></li>" >> newsletter-portfolio/newsletters/archives.html
-        done
-        
-        # Fermer les balises HTML
-        cat >> newsletter-portfolio/newsletters/archives.html << 'EOF'
-            </ul>
-            <p><a href="../index.html">Retour à la dernière newsletter</a></p>
-        </body>
-        </html>
-        EOF
-   
-
     - name: Déploiement sur GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@v4
+      run: |
+        cd newsletter-portfolio
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+        git add .
+        git commit -m "Mise à jour de la newsletter"
+        git push origin gh-pages
+      env:
+        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        
+    - name: Envoyer une notification par email
+      uses: dawidd6/action-send-mail@v3
       with:
-        repository: SiaSia-dev/newsletter-portfolio
-        folder: newsletters
-        token: ${{ secrets.DEPLOY_TOKEN }}
-        branch: gh-pages
-        clean: true
+        server_address: ${{ secrets.MAIL_SERVER }}
+        server_port: ${{ secrets.MAIL_PORT }}
+        username: ${{ secrets.MAIL_USERNAME }}
+        password: ${{ secrets.MAIL_PASSWORD }}
+        subject: 🔔 Newsletter Portfolio générée - À vérifier
+        body: |
+          Bonjour,
+          
+          La newsletter de cette semaine a été générée et est prête pour votre validation.
+          
+          URL de prévisualisation: https://siasia-dev.github.io/newsletter-portfolio/newsletters/latest.html
+          
+          Si le contenu vous convient, vous pouvez déclencher manuellement la publication LinkedIn 
+          via l'interface GitHub Actions.
+          
+          Bonne journée !
+        to: ${{ secrets.NOTIFICATION_EMAIL }}
+        from: Newsletter Portfolio <${{ secrets.MAIL_USERNAME }}>
