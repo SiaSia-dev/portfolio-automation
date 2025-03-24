@@ -25,6 +25,15 @@ jobs:
       uses: actions/checkout@v3
       with:
         path: newsletter-portfolio
+
+    - name: Checkout du dépôt newsletter-portfolio
+      uses: actions/checkout@v3
+      with:
+        path: newsletter-portfolio
+
+    - name: Afficher le contenu du répertoire newsletter-portfolio
+      run: |
+        ls -al newsletter-portfolio
     
     - name: Checkout du dépôt portfolio
       uses: actions/checkout@v3
@@ -50,11 +59,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
 
+    - name: Afficher le contenu du répertoire de travail
+      run: |
+        ls -al
+        ls -al newsletter-portfolio
+
     - name: Initialiser le dépôt Git
       run: |
         cd newsletter-portfolio
-        git init
-        git checkout -b gh-pages      
+        git init --initial-branch=gh-pages     
     
     - name: Exécution du générateur de newsletter
       run: |
