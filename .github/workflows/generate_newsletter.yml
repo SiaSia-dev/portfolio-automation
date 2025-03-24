@@ -68,7 +68,7 @@ jobs:
         cp scripts/newsletter_generator.py newsletter_generator_modified.py
         
         # Modifier la période de recherche des fichiers Markdown
-        sed -i 's/def get_recent_md_files(docs_directory, max_count=6, days_ago=7):/def get_recent_md_files(docs_directory, max_count=10, days_ago=30):/' newsletter_generator_modified.py
+        sed -i 's/def get_recent_md_files(docs_directory, max_count=6, days_ago=7):/def get_recent_md_files(docs_directory, max_count=6, days_ago=30):/' newsletter_generator_modified.py
     
     - name: Exécuter le générateur de newsletter modifié
       run: |

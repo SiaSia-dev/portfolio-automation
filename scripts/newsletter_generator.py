@@ -100,7 +100,7 @@ def extract_metadata_and_content(md_file_path):
         logger.error(f"Erreur lors de la lecture du fichier {md_file_path}: {e}")
         return {'title': os.path.basename(md_file_path), 'description': '', 'tags': []}, ""
 
-def get_recent_md_files(docs_directory, max_count=10, days_ago=30):
+def get_recent_md_files(docs_directory, max_count=6, days_ago=30):
     """
     Récupère les fichiers Markdown les plus récents du répertoire docs.
     """
