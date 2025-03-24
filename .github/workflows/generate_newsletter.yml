@@ -25,6 +25,17 @@ jobs:
         token: ${{ secrets.DEPLOY_TOKEN }}
         ref: main 
     
+    - name: Vérifier le contenu du dépôt PORTFOLIO
+      run: |
+        echo "Contenu du répertoire PORTFOLIO :"
+        ls -la PORTFOLIO/
+        
+        echo "Contenu du répertoire PORTFOLIO/docs :"
+        ls -la PORTFOLIO/docs/ || echo "Le dossier docs n'existe pas"
+        
+        echo "Recherche de fichiers markdown dans PORTFOLIO :"
+        find PORTFOLIO -name "*.md" | head -10
+    
     - name: Checkout du dépôt newsletter-portfolio
       uses: actions/checkout@v3
       with:
@@ -43,33 +54,52 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
     
-    # Génération dans le dépôt portfolio-automation (qui fonctionne bien)
-    - name: Exécuter le générateur de newsletter pour portfolio-automation
+    # Utilisons le chemin qui fonctionnait précédemment
+    - name: Exécuter le générateur de newsletter
       run: |
         python scripts/newsletter_generator.py
+        echo "Vérification des fichiers générés :"
+        ls -la newsletters/
       env:
-        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO/docs
+        # Utiliser le chemin exact qui fonctionnait avant
+        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         CONTENT_COUNT: 6
         REQUIRE_YAML: false
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
-        CREATE_INDEX: true
-        CREATE_LATEST: true
-        CREATE_ARCHIVES: true
     
-    - name: Copier les fichiers newsletter (partie 1)
+    - name: Préparer le dossier de destination
       run: mkdir -p newsletter-portfolio/newsletters
     
-    - name: Copier les fichiers newsletter (partie 2)
-      run: cp -r newsletters/* newsletter-portfolio/newsletters/ || echo "Erreur de copie, mais continuons"
+    - name: Copier les fichiers HTML
+      run: |
+        echo "Copie des fichiers HTML vers newsletter-portfolio..."
+        cp -r newsletters/*.html newsletter-portfolio/newsletters/ || echo "Aucun fichier HTML trouvé"
     
-    - name: Créer le fichier index.html
-      run: echo "<html><head><meta http-equiv='refresh' content='0;url=./newsletters/latest.html'></head><body>Redirection...</body></html>" > newsletter-portfolio/index.html
+    - name: Copier les images
+      run: |
+        if [ -d "newsletters/img" ]; then
+          echo "Copie des images..."
+          mkdir -p newsletter-portfolio/newsletters/img
+          cp -r newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image trouvée"
+        else
+          echo "Dossier d'images introuvable"
+        fi
     
-    - name: Créer le fichier .nojekyll
-      run: touch newsletter-portfolio/.nojekyll
+    - name: Créer index.html et .nojekyll
+      run: |
+        echo "Création du fichier index.html..."
+        echo "<html><head><meta http-equiv='refresh' content='0;url=./newsletters/latest.html'></head><body>Redirection...</body></html>" > newsletter-portfolio/index.html
+        
+        echo "Création du fichier .nojekyll..."
+        touch newsletter-portfolio/.nojekyll
     
-    - name: Vérifier les fichiers
-      run: ls -la newsletter-portfolio/newsletters/
+    - name: Vérifier les fichiers avant déploiement
+      run: |
+        echo "Contenu du dossier newsletters :"
+        ls -la newsletters/
+        
+        echo "Contenu du dossier newsletter-portfolio/newsletters :"
+        ls -la newsletter-portfolio/newsletters/
     
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
