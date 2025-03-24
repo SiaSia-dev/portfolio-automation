@@ -129,3 +129,13 @@ jobs:
           Bonne journée !
         to: ${{ secrets.NOTIFICATION_EMAIL }}
         from: Newsletter Portfolio <${{ secrets.MAIL_USERNAME }}>
+
+    - name: Force refresh GitHub Pages
+      run: |
+        cd newsletter-portfolio
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git commit --allow-empty -m "Force refresh GitHub Pages"
+        git push origin gh-pages
+      env:
+        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
