@@ -938,7 +938,7 @@ def main():
     Fonction principale du générateur de newsletter.
     """
     # Chemins des répertoires (à ajuster selon votre configuration)
-    portfolio_directory = os.environ.get('PORTFOLIO_DIR', '../portfolio')
+    portfolio_directory = os.environ.get('PORTFOLIO_DIR', '../PORTFOLIO')
     docs_directory = os.path.join(portfolio_directory, 'docs')
     output_directory = os.environ.get('OUTPUT_DIR', './newsletters')
     

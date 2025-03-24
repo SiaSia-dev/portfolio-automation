@@ -79,8 +79,8 @@ jobs:
     - name: Création du dossier newsletters dans le dépôt principal
       run: |
         mkdir -p newsletter-portfolio/newsletters
-        cp -R newsletters/* newsletter-portfolio/newsletters/
-    
+        cp -R ${{ github.workspace }}/portfolio-automation/newsletters/* newsletter-portfolio/newsletters/
+
     - name: Création de l'index et de la structure du site
       run: |
         # Création d'un fichier index.html à la racine qui redirige vers la dernière newsletter
