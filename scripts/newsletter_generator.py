@@ -150,7 +150,57 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=30):
         logger.error(f"Erreur lors de la récupération des fichiers récents: {e}")
         return []
 
-# [Toutes les autres fonctions précédentes restent identiques]
+def generate_newsletter_content(md_files, portfolio_directory, output_directory, display_date):
+    """
+    Génère le contenu de la newsletter à partir des fichiers Markdown.
+    """
+    try:
+        projects = []
+        
+        # Pour chaque fichier Markdown
+        for file_info in md_files:
+            filepath = file_info['path']
+            filename = file_info['filename']
+            
+            # Extraire les métadonnées et le contenu
+            metadata, content = extract_metadata_and_content(filepath)
+            
+            # Rechercher une image pour le projet
+            image_path = find_image_for_project(metadata['title'], content, portfolio_directory)
+            image_url = 'img/' + os.path.basename(image_path) if image_path else 'img/default.jpg'
+            
+            # Générer le HTML à partir du Markdown
+            html_content = markdown.markdown(content, extensions=['extra', 'smarty'])
+            
+            # Créer une structure de données pour le projet
+            project = {
+                'id': os.path.splitext(filename)[0],
+                'title': metadata['title'],
+                'description': metadata['description'],
+                'summary': html_content,
+                'tags': metadata.get('tags', []),
+                'image': image_url,
+                'modified_at': file_info['modified_at']
+            }
+            
+            projects.append(project)
+        
+        # Générer le contenu Markdown pour la newsletter
+        newsletter_content = f"# 📧 Newsletter du {display_date}\n\n"
+        
+        for project in projects:
+            newsletter_content += f"## {project['title']}\n\n"
+            newsletter_content += f"{project['description']}\n\n"
+            newsletter_content += f"[Lire la suite](#)\n\n"
+            if project['tags']:
+                newsletter_content += "Tags: " + ", ".join([f"#{tag}" for tag in project['tags']]) + "\n\n"
+            newsletter_content += "---\n\n"
+        
+        return newsletter_content, projects
+    
+    except Exception as e:
+        logger.error(f"Erreur lors de la génération du contenu de la newsletter: {e}")
+        return f"# Erreur de génération\n\nUne erreur s'est produite: {str(e)}", []
 
 def create_index_and_archives(output_directory, file_date, display_date):
     """
@@ -308,29 +358,6 @@ def copy_images_to_newsletter(portfolio_directory, output_directory):
         logger.warning(f"Dossier d'images non trouvé: {portfolio_img_dir}")
     
     return header_image_exists
-
-
-def save_newsletter(content, output_directory, file_date):
-    """
-    Sauvegarde la newsletter dans un fichier avec un nom horodaté.
-    """
-    try:
-        # Créer le répertoire de sortie s'il n'existe pas
-        Path(output_directory).mkdir(parents=True, exist_ok=True)
-        
-        # Générer un nom de fichier avec la date au format YYYYMMDD
-        filename = f"newsletter_{file_date}.md"
-        
-        file_path = os.path.join(output_directory, filename)
-        
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        
-        logger.info(f"Newsletter sauvegardée: {file_path}")
-        return file_path
-    except Exception as e:
-        logger.error(f"Erreur lors de la sauvegarde de la newsletter: {e}")
-        return None
 
 def find_image_for_project(project_name, content, portfolio_directory):
     """
@@ -492,7 +519,7 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
             }
             """
         
-        # Continuer avec le reste du CSS (identique à votre version précédente)
+        # Continuer avec le reste du CSS
         css_style += """
             h2 {
                 font-size: 1.8rem;
@@ -505,7 +532,29 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
         </style>
         """
         
-        # Générer le HTML
+        # Générer le contenu des projets
+        projects_html = ""
+        for project in projects:
+            # Générer les tags HTML
+            tags_html = ""
+            if project['tags']:
+                tags_html = '<div class="tags">'
+                for tag in project['tags']:
+                    tags_html += f'<span class="tag">{tag}</span>'
+                tags_html += '</div>'
+            
+            # Ajouter le projet au HTML
+            projects_html += f"""
+        <div class="project-full-content">
+            <h2>{project['title']}</h2>
+            <img class="hero-image" src="{project['image']}" alt="{project['title']}">
+            <div class="project-description">{project['description']}</div>
+            <div class="project-summary">{project['summary']}</div>
+            {tags_html}
+        </div>
+        """
+        
+        # Générer le HTML complet
         html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -516,15 +565,7 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
 </head>
 <body>
     <div class="container">
-        {"".join([f"""
-        <div class="project-full-content">
-            <h2>{project['title']}</h2>
-            <img class="hero-image" src="{project['image']}" alt="{project['title']}">
-            <div class="project-description">{project['description']}</div>
-            <div class="project-summary">{project['summary']}</div>
-            {"".join([f'<span class="tag">{tag}</span>' for tag in project['tags']])}
-        </div>
-        """ for project in projects])}
+        {projects_html}
     </div>
 </body>
 </html>"""
@@ -544,6 +585,27 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
         logger.error(f"Erreur lors de la génération du fichier HTML : {e}")
         return None
 
+def save_newsletter(content, output_directory, file_date):
+    """
+    Sauvegarde la newsletter dans un fichier avec un nom horodaté.
+    """
+    try:
+        # Créer le répertoire de sortie s'il n'existe pas
+        Path(output_directory).mkdir(parents=True, exist_ok=True)
+        
+        # Générer un nom de fichier avec la date au format YYYYMMDD
+        filename = f"newsletter_{file_date}.md"
+        
+        file_path = os.path.join(output_directory, filename)
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        logger.info(f"Newsletter sauvegardée: {file_path}")
+        return file_path
+    except Exception as e:
+        logger.error(f"Erreur lors de la sauvegarde de la newsletter: {e}")
+        return None
 
 def main():
     """
