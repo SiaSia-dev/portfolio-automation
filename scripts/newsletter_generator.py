@@ -15,13 +15,49 @@ logging.basicConfig(
 )
 logger = logging.getLogger('newsletter_generator')
 
+def create_default_metadata(title, content):
+    """
+    Crée des métadonnées par défaut en extrayant des informations du contenu Markdown.
+    """
+    # Extraire les premiers 150 caractères comme description
+    plain_text = BeautifulSoup(markdown.markdown(content), 'html.parser').get_text()
+    description = plain_text[:150] + '...' if len(plain_text) > 150 else plain_text
+    
+    # Essayer d'extraire un meilleur titre du contenu (premier titre H1/H2)
+    title_match = re.search(r'^#+\s+(.+)$', content, re.MULTILINE)
+    if title_match:
+        extracted_title = title_match.group(1).strip()
+        if extracted_title:
+            title = extracted_title
+    
+    # Essayer d'extraire des tags potentiels du contenu
+    tags = []
+    hashtag_matches = re.findall(r'#([a-zA-Z0-9_]+)', content)
+    if hashtag_matches:
+        tags = list(set(hashtag_matches))  # Éliminer les doublons
+    
+    # Ajouter un tag par défaut si aucun n'a été trouvé
+    if not tags:
+        tags = ['portfolio']
+    
+    return {
+        'title': title,
+        'description': description,
+        'tags': tags
+    }
+
 def extract_metadata_and_content(md_file_path):
     """
     Extrait les métadonnées et le contenu d'un fichier Markdown.
+    Gère les cas avec ou sans frontmatter YAML.
     """
     try:
         with open(md_file_path, 'r', encoding='utf-8') as file:
             content = file.read()
+
+        # Extraire le nom du fichier pour l'utiliser comme titre par défaut
+        filename = os.path.basename(md_file_path)
+        default_title = os.path.splitext(filename)[0].replace('-', ' ').title()
 
         # Vérifier la présence du format frontmatter YAML
         if content.startswith('---'):
@@ -32,22 +68,39 @@ def extract_metadata_and_content(md_file_path):
                 metadata_yaml = parts[1].strip()
                 try:
                     metadata = yaml.safe_load(metadata_yaml)
+                    if metadata is None:  # Si le YAML est vide ou invalide
+                        metadata = {}
                     main_content = parts[2].strip()
+                    
+                    # Ajouter les métadonnées par défaut si elles sont manquantes
+                    if 'title' not in metadata:
+                        metadata['title'] = default_title
+                    if 'description' not in metadata:
+                        # Extraire les premiers 150 caractères comme description
+                        plain_text = BeautifulSoup(markdown.markdown(main_content), 'html.parser').get_text()
+                        metadata['description'] = plain_text[:150] + '...' if len(plain_text) > 150 else plain_text
+                    if 'tags' not in metadata:
+                        metadata['tags'] = ['portfolio']
+                        
                     return metadata, main_content
                 except yaml.YAMLError as e:
                     logger.error(f"Erreur lors du parsing YAML dans {md_file_path}: {e}")
-                    return {}, content
+                    # En cas d'erreur, créer des métadonnées par défaut
+                    metadata = create_default_metadata(default_title, content)
+                    return metadata, content
             else:
                 logger.warning(f"Format de frontmatter incorrect dans {md_file_path}")
-                return {}, content
+                metadata = create_default_metadata(default_title, content)
+                return metadata, content
         else:
-            logger.warning(f"Pas de frontmatter trouvé dans {md_file_path}")
-            return {}, content
+            logger.warning(f"Pas de frontmatter trouvé dans {md_file_path}, création de métadonnées par défaut")
+            metadata = create_default_metadata(default_title, content)
+            return metadata, content
     except Exception as e:
         logger.error(f"Erreur lors de la lecture du fichier {md_file_path}: {e}")
-        return {}, ""
+        return {'title': os.path.basename(md_file_path), 'description': '', 'tags': []}, ""
 
-def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
+def get_recent_md_files(docs_directory, max_count=10, days_ago=30):
     """
     Récupère les fichiers Markdown les plus récents du répertoire docs.
     """
@@ -59,6 +112,8 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
         
+        logger.info(f"Recherche de fichiers modifiés depuis le {cutoff_date.strftime('%Y-%m-%d')}")
+        
         md_files = []
         for filename in os.listdir(docs_directory):
             if filename.endswith('.md'):
@@ -67,6 +122,19 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
                 
                 # Vérifier si le fichier a été modifié dans les X derniers jours
                 if mod_time >= cutoff_date:
+                    md_files.append({
+                        'path': file_path,
+                        'modified_at': mod_time,
+                        'filename': filename
+                    })
+        
+        # Si aucun fichier récent n'est trouvé, prendre tous les fichiers
+        if not md_files:
+            logger.warning(f"Aucun fichier modifié depuis {days_ago} jours, utilisation de tous les fichiers disponibles")
+            for filename in os.listdir(docs_directory):
+                if filename.endswith('.md'):
+                    file_path = os.path.join(docs_directory, filename)
+                    mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
                     md_files.append({
                         'path': file_path,
                         'modified_at': mod_time,
@@ -190,7 +258,7 @@ def copy_images_to_newsletter(portfolio_directory, output_directory):
             except Exception as e:
                 logger.error(f"Erreur lors de la copie de l'image d'en-tête: {e}")
         else:
-            logger.warning("Image d'en-tête 'Carneti.jpg' non trouvée dans le dossier img")
+            logger.warning("Image d'en-tête 'Slowsia.jpg' non trouvée dans le dossier img")
     else:
         logger.warning(f"Dossier d'images non trouvé: {portfolio_img_dir}")
     
@@ -860,7 +928,7 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
         # Générer le nom du fichier HTML avec le format YYYYMMDD
         html_filename = f"newsletter_{file_date}.html"
         
-# Générer le HTML de l'en-tête en fonction de l'existence de l'image d'en-tête
+        # Générer le HTML de l'en-tête en fonction de l'existence de l'image d'en-tête
         if header_image_exists:
             header_html = f"""
             <div class="header">

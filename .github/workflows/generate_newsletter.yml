@@ -23,8 +23,6 @@ jobs:
     steps:
     - name: Checkout du dépôt portfolio-automation (dépôt actuel)
       uses: actions/checkout@v3
-      with:
-        path: portfolio-automation
     
     - name: Checkout du dépôt newsletter-portfolio
       uses: actions/checkout@v3
@@ -32,19 +30,22 @@ jobs:
         repository: SiaSia-dev/newsletter-portfolio
         path: newsletter-portfolio
         token: ${{ secrets.GH_PAT }}
-
-    - name: Afficher le contenu du répertoire de travail
-      run: |
-        ls -al
-        echo "Contenu de portfolio-automation:"
-        ls -la portfolio-automation
     
-    - name: Checkout du dépôt portfolio
+    - name: Checkout du dépôt PORTFOLIO
       uses: actions/checkout@v3
       with:
         repository: SiaSia-dev/PORTFOLIO
         path: PORTFOLIO
         token: ${{ secrets.GH_PAT }}
+        ref: main  # Spécifier la branche principale
+    
+    - name: Vérifier le contenu du répertoire PORTFOLIO
+      run: |
+        echo "Contenu du répertoire PORTFOLIO/docs:"
+        ls -la PORTFOLIO/docs/ || echo "Dossier docs non trouvé!"
+        
+        echo "Contenu du répertoire PORTFOLIO/img:"
+        ls -la PORTFOLIO/img/ || echo "Dossier img non trouvé!"
     
     - name: Configuration de Python
       uses: actions/setup-python@v4
@@ -61,9 +62,17 @@ jobs:
         mkdir -p newsletters
         mkdir -p newsletters/img
     
-    - name: Exécution du générateur de newsletter
+    - name: Copier et modifier le générateur de newsletter
       run: |
-        python portfolio-automation/scripts/newsletter_generator.py
+        # Copier le script original dans un nouveau fichier
+        cp scripts/newsletter_generator.py newsletter_generator_modified.py
+        
+        # Modifier la période de recherche des fichiers Markdown
+        sed -i 's/def get_recent_md_files(docs_directory, max_count=6, days_ago=7):/def get_recent_md_files(docs_directory, max_count=10, days_ago=30):/' newsletter_generator_modified.py
+    
+    - name: Exécuter le générateur de newsletter modifié
+      run: |
+        python newsletter_generator_modified.py
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
@@ -80,10 +89,7 @@ jobs:
         mkdir -p newsletter-portfolio/newsletters
         mkdir -p newsletter-portfolio/newsletters/img
         cp -R newsletters/* newsletter-portfolio/newsletters/
-    
-    - name: Vérifier le contenu du répertoire de destination
-      run: |
-        echo "Contenu du répertoire newsletter-portfolio/newsletters:"
+        echo "Contenu copié dans newsletter-portfolio/newsletters:"
         ls -la newsletter-portfolio/newsletters/
     
     - name: Création de l'index et de la structure du site
@@ -125,7 +131,7 @@ jobs:
         touch newsletter-portfolio/.nojekyll
         
         # Création d'un lien symbolique de la dernière newsletter
-        LATEST=$(ls -t newsletters/*.html | head -1)
+        LATEST=$(find newsletters -name "*.html" -type f | sort -r | head -1)
         if [ -n "$LATEST" ]; then
           echo "Dernière newsletter trouvée: $LATEST"
           cp "$LATEST" newsletter-portfolio/newsletters/latest.html
@@ -186,6 +192,7 @@ jobs:
         # Fermer les balises HTML
         cat >> newsletter-portfolio/newsletters/archives.html << 'EOF'
             </ul>
+            <p><a href="../index.html">Retour à la dernière newsletter</a></p>
         </body>
         </html>
         EOF
@@ -210,14 +217,14 @@ jobs:
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         folder: newsletter-portfolio
-        branch: gh-pages
         token: ${{ secrets.GH_PAT }}
+        branch: gh-pages
         clean: true
     
     - name: Publication sur LinkedIn si le token est configuré
       if: env.LINKEDIN_ACCESS_TOKEN != '' && env.LINKEDIN_PERSON_ID != ''
       run: |
-        python portfolio-automation/scripts/linkedin_publisher.py
+        python scripts/linkedin_publisher.py
       env:
         LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
         LINKEDIN_PERSON_ID: ${{ secrets.LINKEDIN_PERSON_ID }}
