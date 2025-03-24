@@ -25,16 +25,20 @@ jobs:
         token: ${{ secrets.DEPLOY_TOKEN }}
         ref: main 
     
-    - name: Vérifier le contenu du dépôt PORTFOLIO
+    - name: Vérifier la structure du dépôt PORTFOLIO
       run: |
-        echo "Contenu du répertoire PORTFOLIO :"
+        echo "Contenu du dépôt PORTFOLIO:"
         ls -la PORTFOLIO/
         
-        echo "Contenu du répertoire PORTFOLIO/docs :"
-        ls -la PORTFOLIO/docs/ || echo "Le dossier docs n'existe pas"
+        if [ -d "PORTFOLIO/docs" ]; then
+          echo "Dossier docs trouvé. Contenu:"
+          ls -la PORTFOLIO/docs/
+        else
+          echo "ATTENTION: Le dossier docs n'existe pas dans le dépôt PORTFOLIO!"
+        fi
         
-        echo "Recherche de fichiers markdown dans PORTFOLIO :"
-        find PORTFOLIO -name "*.md" | head -10
+        echo "Recherche de fichiers markdown:"
+        find PORTFOLIO -name "*.md" | sort
     
     - name: Checkout du dépôt newsletter-portfolio
       uses: actions/checkout@v3
@@ -54,52 +58,66 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
     
-    # Utilisons le chemin qui fonctionnait précédemment
+    # Modification importante : utilisation de PORTFOLIO directement comme docs_directory
     - name: Exécuter le générateur de newsletter
       run: |
+        # Modification temporaire du script pour afficher plus d'informations
+        sed -i 's/logger\.info(f"Recherche de fichiers Markdown récents dans {docs_directory}")/logger.info(f"DBUG: portfolio_directory={portfolio_directory}, docs_directory={docs_directory}")/' scripts/newsletter_generator.py
+        
+        # Dans ce cas, docs_directory sera déjà le chemin vers le dossier contenant les .md
+        # Nous contournons donc la logique qui ajoute '/docs' au chemin
         python scripts/newsletter_generator.py
-        echo "Vérification des fichiers générés :"
-        ls -la newsletters/
       env:
-        # Utiliser le chemin exact qui fonctionnait avant
-        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO/docs
+        # IMPORTANT: on définit PORTFOLIO_DIR pour qu'il pointe vers le dossier contenant les fichiers .md
+        # Si les fichiers sont dans PORTFOLIO/docs, utilisez cette ligne:
+        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
+        # Si les fichiers sont à la racine de PORTFOLIO, décommentez cette ligne à la place:
+        # PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
+        # Pour définir directement le dossier docs, essayez cette approche:
+        DOCS_DIRECTORY: ${{ github.workspace }}/PORTFOLIO/docs
         CONTENT_COUNT: 6
         REQUIRE_YAML: false
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
     
+    - name: Vérifier les fichiers générés
+      run: |
+        echo "Contenu du dossier newsletters:"
+        ls -la newsletters/ || echo "Le dossier newsletters n'existe pas ou est vide"
+        
+        if [ -f "newsletters/latest.html" ]; then
+          echo "Le fichier latest.html existe. Taille:"
+          wc -l newsletters/latest.html
+        else
+          echo "ERREUR: Le fichier latest.html n'existe pas!"
+        fi
+    
     - name: Préparer le dossier de destination
       run: mkdir -p newsletter-portfolio/newsletters
     
-    - name: Copier les fichiers HTML
+    - name: Copier les fichiers générés vers newsletter-portfolio
       run: |
-        echo "Copie des fichiers HTML vers newsletter-portfolio..."
-        cp -r newsletters/*.html newsletter-portfolio/newsletters/ || echo "Aucun fichier HTML trouvé"
-    
-    - name: Copier les images
-      run: |
-        if [ -d "newsletters/img" ]; then
-          echo "Copie des images..."
-          mkdir -p newsletter-portfolio/newsletters/img
-          cp -r newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image trouvée"
-        else
-          echo "Dossier d'images introuvable"
-        fi
-    
-    - name: Créer index.html et .nojekyll
-      run: |
-        echo "Création du fichier index.html..."
-        echo "<html><head><meta http-equiv='refresh' content='0;url=./newsletters/latest.html'></head><body>Redirection...</body></html>" > newsletter-portfolio/index.html
+        # Copier tous les fichiers HTML
+        cp -r newsletters/*.html newsletter-portfolio/newsletters/ || echo "Aucun fichier HTML à copier"
         
-        echo "Création du fichier .nojekyll..."
+        # Copier le dossier img s'il existe
+        if [ -d "newsletters/img" ]; then
+          mkdir -p newsletter-portfolio/newsletters/img
+          cp -r newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image à copier"
+        fi
+        
+        # Créer fichier index.html simple
+        echo "<html><head><title>Newsletter Portfolio</title><meta http-equiv='refresh' content='0;url=./newsletters/latest.html'></head><body>Redirection...</body></html>" > newsletter-portfolio/index.html
+        
+        # Créer .nojekyll
         touch newsletter-portfolio/.nojekyll
     
     - name: Vérifier les fichiers avant déploiement
       run: |
         echo "Contenu du dossier newsletters :"
-        ls -la newsletters/
+        ls -la newsletters/ || echo "Le dossier newsletters n'existe pas"
         
         echo "Contenu du dossier newsletter-portfolio/newsletters :"
-        ls -la newsletter-portfolio/newsletters/
+        ls -la newsletter-portfolio/newsletters/ || echo "Le dossier newsletter-portfolio/newsletters n'existe pas"
     
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
