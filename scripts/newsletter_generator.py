@@ -309,7 +309,6 @@ def copy_images_to_newsletter(portfolio_directory, output_directory):
     
     return header_image_exists
 
-
 def generate_single_file_html(projects, display_date, output_directory, file_date, header_image_exists=False):
     """
     Génère un fichier HTML unique contenant tous les projets avec leurs contenus détaillés.
@@ -389,6 +388,57 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
                 position: relative;
                 z-index: 2;
             }
+            
+            .header h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin-bottom: 15px;
+                color: white;
+                position: relative;
+                display: inline-block;
+            }
+            
+            .header h1::after {
+                content: '';
+                position: absolute;
+                left: 50%;
+                bottom: -10px;
+                transform: translateX(-50%);
+                width: 60px;
+                height: 3px;
+                background-color: var(--accent);
+            }
+            
+            .header p {
+                color: rgba(255, 255, 255, 0.9);
+            }
+            """
+        else:
+            css_style += """
+            .header {
+                text-align: center;
+                margin-bottom: 50px;
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin-bottom: 15px;
+                color: var(--primary);
+                position: relative;
+                display: inline-block;
+            }
+            
+            .header h1::after {
+                content: '';
+                position: absolute;
+                left: 50%;
+                bottom: -10px;
+                transform: translateX(-50%);
+                width: 60px;
+                height: 3px;
+                background-color: var(--accent);
+            }
             """
         
         # Continuer avec le reste du CSS
@@ -399,63 +449,34 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
                 scroll-margin-top: 50px;
             }
             
-            .project-full-content {
-                padding: 40px;
-                margin-bottom: 60px;
-                background-color: white;
-                border-radius: var(--radius);
-                box-shadow: var(--shadow);
-            }
-            
-            .hero-image {
-                width: 100%;
-                max-height: 400px;
-                object-fit: cover;
-                border-radius: var(--radius);
-                margin-bottom: 30px;
-            }
-            
-            .tags {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-                margin-top: 20px;
-            }
-            
-            .tag {
-                background-color: var(--light);
-                color: var(--primary);
-                padding: 5px 12px;
-                border-radius: 20px;
-                font-size: 0.75rem;
-                font-weight: 500;
-            }
+            /* ... [le reste de votre CSS précédent] ... */
         }
         </style>
         """
         
-        # Générer le contenu HTML des projets
+        # Générer le contenu des projets
         projects_html = ""
         for project in projects:
             # Générer les tags HTML
             tags_html = ""
             if project['tags']:
-                tags_html = '<div class="tags">' + ''.join([
-                    f'<span class="tag">{tag}</span>' for tag in project['tags']
-                ]) + '</div>'
+                tags_html = '<div class="tags">'
+                for tag in project['tags']:
+                    tags_html += f'<span class="tag">{tag}</span>'
+                tags_html += '</div>'
             
             # Ajouter le projet au HTML
             projects_html += f"""
-        <div id="{project['id']}" class="project-full-content">
+        <div class="project-full-content">
             <h2>{project['title']}</h2>
-            <img class="hero-image" src="{project['image']}" alt="{project['title']}" loading="lazy">
+            <img class="hero-image" src="{project['image']}" alt="{project['title']}">
             <div class="project-description">{project['description']}</div>
             <div class="project-summary">{project['summary']}</div>
             {tags_html}
         </div>
         """
         
-        # HTML complet
+        # Générer le HTML complet
         html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -485,6 +506,7 @@ def generate_single_file_html(projects, display_date, output_directory, file_dat
     except Exception as e:
         logger.error(f"Erreur lors de la génération du fichier HTML : {e}")
         return None
+
 
 def save_newsletter(content, output_directory, file_date):
     """
