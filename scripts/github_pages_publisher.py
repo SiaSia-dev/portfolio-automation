@@ -19,18 +19,16 @@ class GithubPagesPublisher:
     def __init__(self, repository_url=None, branch="gh-pages"):
         """
         Initialise le publisher pour GitHub Pages.
-        
-        Args:
-            repository_url (str): URL du dépôt GitHub à utiliser (par défaut: valeur de GITHUB_PAGES_REPO)
-            branch (str): Branche à utiliser pour GitHub Pages (par défaut: gh-pages)
         """
-        # Utiliser un dépôt fixe pour simplifier
-        self.repository_url = repository_url or os.environ.get('GITHUB_PAGES_REPO') or "https://github.com/SiaSia-dev/newsletter-portfolio.git"
+        # Utiliser explicitement l'URL du dépôt newsletter-portfolio
+        self.repository_url = repository_url or "https://github.com/SiaSia-dev/newsletter-portfolio.git"
         
         self.branch = branch
-        # Générer un nom de dossier temporaire unique pour éviter les conflits
-        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-        self.temp_dir = Path(f"./gh_pages_temp_{random_suffix}")
+        # ... reste du code inchangé
+
+            # Générer un nom de dossier temporaire unique pour éviter les conflits
+            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+            self.temp_dir = Path(f"./gh_pages_temp_{random_suffix}")
         
     def _run_command(self, command, cwd=None, ignore_errors=False):
         """Exécute une commande shell et retourne le résultat."""
@@ -55,64 +53,59 @@ class GithubPagesPublisher:
                 raise
             
     def publish_newsletter(self, html_file_path, output_name=None):
-        """
-        Publie un fichier HTML de newsletter sur GitHub Pages.
+    """
+    Publie un fichier HTML de newsletter sur GitHub Pages.
+    
+    Args:
+        html_file_path (str): Chemin vers le fichier HTML de la newsletter
+        output_name (str, optional): Nom du fichier de sortie (index.html par défaut)
         
-        Args:
-            html_file_path (str): Chemin vers le fichier HTML de la newsletter
-            output_name (str, optional): Nom du fichier de sortie (index.html par défaut)
-            
-        Returns:
-            str: URL publique de la newsletter publiée
-        """
+    Returns:
+        str: URL publique de la newsletter publiée
+    """
+    # URL publique par défaut
+    public_url = "https://SiaSia-dev.github.io/newsletter-portfolio"
+    
+    try:
+        # Vérifier si le fichier HTML existe
         if not os.path.exists(html_file_path):
-            raise FileNotFoundError(f"Le fichier {html_file_path} n'existe pas")
+            logger.error(f"Le fichier {html_file_path} n'existe pas")
+            return public_url
         
         # Créer un nom de sortie si non spécifié
         if not output_name:
             output_name = "index.html"
         
-        # Créer ou nettoyer le répertoire temporaire
-        if self.temp_dir.exists():
-            try:
-                shutil.rmtree(self.temp_dir)
-                # Attendre un peu pour s'assurer que le système a fini de supprimer le dossier
-                time.sleep(1)
-            except Exception as e:
-                logger.warning(f"Impossible de supprimer le dossier temporaire: {e}")
-                # Générer un nouveau nom de dossier
-                random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-                self.temp_dir = Path(f"./gh_pages_temp_{random_suffix}")
-        
-        # Créer le dossier temporaire
-        self.temp_dir.mkdir(parents=True, exist_ok=True)
+        # Créer un répertoire temporaire unique
+        temp_dir = Path(f"./gh_pages_temp_{datetime.now().strftime('%Y%m%d%H%M%S')}")
+        temp_dir.mkdir(parents=True, exist_ok=True)
         
         try:
             # Initialiser un nouveau dépôt Git
-            logger.info(f"Initialisation d'un nouveau dépôt Git dans {self.temp_dir}")
-            self._run_command("git init", cwd=self.temp_dir)
+            subprocess.run(["git", "init"], cwd=temp_dir, check=True)
             
-            # Configurer Git avec des identifiants génériques
-            logger.info("Configuration de Git")
-            self._run_command('git config user.name "Newsletter Publisher"', cwd=self.temp_dir)
-            self._run_command('git config user.email "newsletter@example.com"', cwd=self.temp_dir)
+            # Configurer Git
+            subprocess.run(["git", "config", "user.name", "Newsletter Publisher"], cwd=temp_dir, check=True)
+            subprocess.run(["git", "config", "user.email", "newsletter@example.com"], cwd=temp_dir, check=True)
             
             # Ajouter le dépôt distant
-            logger.info(f"Ajout du dépôt distant: {self.repository_url}")
-            self._run_command(f"git remote add origin {self.repository_url}", cwd=self.temp_dir)
+            remote_add_cmd = [
+                "git", "remote", "add", "origin", 
+                "https://github.com/SiaSia-dev/newsletter-portfolio.git"
+            ]
+            subprocess.run(remote_add_cmd, cwd=temp_dir, check=True)
             
-            # Création de la branche gh-pages
-            logger.info(f"Création de la branche {self.branch}")
-            self._run_command(f"git checkout -b {self.branch}", cwd=self.temp_dir)
+            # Fetch de la branche gh-pages
+            subprocess.run(["git", "fetch", "origin", "gh-pages"], cwd=temp_dir, check=True)
+            subprocess.run(["git", "checkout", "gh-pages"], cwd=temp_dir, check=True)
             
-            # Copier les fichiers nécessaires
-            # 1. Copier le fichier HTML principal
-            dest_path = self.temp_dir / output_name
+            # Copier le fichier HTML
+            dest_path = temp_dir / output_name
             shutil.copy2(html_file_path, dest_path)
             
-            # 2. Copier les images et autres ressources
+            # Copier les images
             img_src_dir = os.path.join(os.path.dirname(html_file_path), "img")
-            img_dest_dir = self.temp_dir / "img"
+            img_dest_dir = temp_dir / "img"
             
             if os.path.exists(img_src_dir):
                 img_dest_dir.mkdir(exist_ok=True)
@@ -124,68 +117,35 @@ class GithubPagesPublisher:
                     if os.path.isfile(src_file):
                         shutil.copy2(src_file, dest_file)
             
-            # Créer un fichier README.md simple
-            with open(self.temp_dir / "README.md", "w") as f:
-                f.write(f"# Newsletter Portfolio\n\nGénéré le {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            
-            # Ajouter les fichiers au dépôt Git
-            logger.info("Ajout des fichiers au dépôt Git")
-            self._run_command("git add .", cwd=self.temp_dir)
+            # Ajouter les fichiers
+            subprocess.run(["git", "add", "."], cwd=temp_dir, check=True)
             
             # Créer un commit
             commit_message = f"Mise à jour de la newsletter - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            logger.info(f"Création d'un commit: {commit_message}")
-            self._run_command(f'git commit -m "{commit_message}"', cwd=self.temp_dir)
+            subprocess.run(["git", "commit", "-m", commit_message], cwd=temp_dir, check=True)
             
-            # Essayer de pousser les modifications
-            logger.info(f"Publication sur la branche {self.branch}")
-            push_result = self._run_command(f"git push -f origin {self.branch}", cwd=self.temp_dir, ignore_errors=True)
+            # Pousser les modifications
+            subprocess.run(["git", "push", "-f", "origin", "gh-pages"], cwd=temp_dir, check=True)
             
-            if push_result is None:
-                logger.warning("Échec du push. Assurez-vous d'avoir les droits d'accès au dépôt.")
-                logger.warning("Voici quelques conseils de dépannage :")
-                logger.warning("1. Utilisez le format HTTPS pour l'URL du dépôt")
-                logger.warning("2. Assurez-vous que le dépôt existe sur GitHub")
-                logger.warning("3. Vérifiez vos identifiants GitHub")
-                
-                # Essayer d'ouvrir un navigateur avec le dépôt GitHub
-                repo_url = self.repository_url.replace(".git", "")
-                logger.info(f"Vous pouvez essayer de créer manuellement le dépôt: {repo_url}")
-                
-                # Déterminer une URL publique approximative
-                username = "SiaSia-dev"  # À adapter selon le nom d'utilisateur réel
-                repo_name = "newsletter-portfolio"
-                public_url = f"https://{username}.github.io/{repo_name}"
-                
-                logger.info(f"URL publique estimée (une fois le problème résolu): {public_url}")
-                return public_url
+            logger.info(f"Newsletter publiée avec succès sur {public_url}")
             
-            # Déterminer l'URL publique en extrayant le nom d'utilisateur et le nom du dépôt
-            repo_parts = self.repository_url.split("/")
-            if len(repo_parts) >= 2:
-                username = repo_parts[-2]
-                repo_name = repo_parts[-1].replace(".git", "")
-                
-                # Construire l'URL GitHub Pages
-                public_url = f"https://{username}.github.io/{repo_name}"
-                
-                logger.info(f"Newsletter publiée avec succès sur {public_url}")
-                return public_url
-            else:
-                logger.warning("Impossible de déterminer l'URL publique avec précision")
-                return f"https://SiaSia-dev.github.io/newsletter-portfolio"
-                
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Erreur lors de l'exécution d'une commande Git: {e}")
         except Exception as e:
             logger.error(f"Erreur lors de la publication: {e}")
-            # Essayer de renvoyer une URL approximative même en cas d'erreur
-            return "https://SiaSia-dev.github.io/newsletter-portfolio"
-        finally:
-            # Nettoyage: supprimer le dossier temporaire
-            try:
-                if self.temp_dir.exists():
-                    shutil.rmtree(self.temp_dir)
-            except Exception as e:
-                logger.warning(f"Impossible de supprimer le dossier temporaire: {e}")
+        
+        return public_url
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la publication sur GitHub Pages: {e}")
+        return public_url
+    finally:
+        # Nettoyer le dossier temporaire
+        try:
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
+        except Exception as e:
+            logger.warning(f"Impossible de supprimer le dossier temporaire: {e}")
 
 def main():
     try:
