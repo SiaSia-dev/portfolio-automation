@@ -33,23 +33,6 @@ Trésor d'Eauze : Patrimoine Numérique Interactif Présentation du Projet Un pr
 
 ---
 
-## Vision Professionnelle
-
-Vision Professionnelle
-Philosophie Fondamentale
-Croire en la Force des Données
-Les Données comme Récits
-Les données ne sont pas de simples chiffres ou...
-
-Vision Professionnelle Philosophie Fondamentale Croire en la Force des Données Les Données comme Récits Les données ne sont pas de simples chiffres ou statistiques, mais des histoires attendant d'être racontées. Chaque ensemble de données contient :
-...
-
-**Tags**: #portfolio
-
-[En savoir plus](#)
-
----
-
 ## Principes Fondamentaux
 
 Principes Fondamentaux
@@ -90,6 +73,20 @@ Philosophie des Voyages
 Les voyages comme source intarissable de découvertes, de compréhensi...
 
 Sources d'Inspiration : Les Voyages Image Représentative Philosophie des Voyages Les voyages comme source intarissable de découvertes, de compréhension et de transformation personnelle. Dimensions de l'Exploration Approche Sensorielle Éveil de tous l...
+
+**Tags**: #portfolio
+
+[En savoir plus](#)
+
+---
+
+## Quiz Interactif NumPy : Apprentissage Dynamique en Data Science
+
+Quiz Interactif NumPy : Apprentissage Dynamique en Data Science
+Présentation du Projet
+Un quiz interactif conçu pour tester et approfondir les connais...
+
+Quiz Interactif NumPy : Apprentissage Dynamique en Data Science Présentation du Projet Un quiz interactif conçu pour tester et approfondir les connaissances en manipulation de données avec NumPy, illustrant une approche innovante d'apprentissage tech...
 
 **Tags**: #portfolio
 
