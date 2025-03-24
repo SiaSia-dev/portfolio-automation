@@ -56,31 +56,27 @@ jobs:
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
     
-    # ÉTAPE MANQUANTE AJOUTÉE : Copier les fichiers vers newsletter-portfolio
-    - name: Copier les fichiers de portfolio-automation vers newsletter-portfolio
+    - name: Copier les fichiers vers newsletter-portfolio
       run: |
-        echo "Copie des fichiers de newsletters vers newsletter-portfolio/newsletters"
-        # Assurez-vous que le dossier de destination existe
+        # Assurez-vous que les dossiers existent
         mkdir -p newsletter-portfolio/newsletters/img
         
-        # Copiez tous les fichiers HTML générés
-        cp -f newsletters/*.html newsletter-portfolio/newsletters/
+        # Copier les fichiers HTML s'ils existent
+        cp -f newsletters/*.html newsletter-portfolio/newsletters/ || echo "Pas de fichiers HTML à copier"
         
-        # Copiez les images si elles existent
+        # Copier les images si elles existent
         if [ -d "newsletters/img" ]; then
-          cp -rf newsletters/img/* newsletter-portfolio/newsletters/img/
+          cp -rf newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Pas d'images à copier"
         fi
         
-        # Créer le fichier index.html à la racine si nécessaire
-        if [ ! -f "newsletter-portfolio/index.html" ]; then
-          cp -f index.html newsletter-portfolio/ || echo "Pas de fichier index.html à copier"
-        fi
+        # Créer index.html
+        echo "Création du fichier index.html"
+        echo "<html><head><meta http-equiv='refresh' content='0;url=./newsletters/latest.html'></head><body>Redirection...</body></html>" > newsletter-portfolio/index.html
         
-        # Assurez-vous que le fichier .nojekyll existe
+        # Créer .nojekyll
         touch newsletter-portfolio/.nojekyll
         
-        # Vérifiez que la copie a fonctionné
-        echo "Contenu après copie:"
+        # Vérifier le contenu
         ls -la newsletter-portfolio/newsletters/
     
     # Vérification des fichiers copiés
@@ -91,18 +87,7 @@ jobs:
         
         echo "Contenu généré pour newsletter-portfolio:"
         ls -la newsletter-portfolio/newsletters/
-        
-        echo "Comparaison des fichiers HTML:"
-        if [ -f "newsletters/latest.html" ] && [ -f "newsletter-portfolio/newsletters/latest.html" ]; then
-          echo "Taille du fichier dans portfolio-automation:"
-          wc -l newsletters/latest.html
-          echo "Taille du fichier dans newsletter-portfolio:"
-          wc -l newsletter-portfolio/newsletters/latest.html
-          
-          echo "Différences entre les deux fichiers:"
-          diff -u newsletters/latest.html newsletter-portfolio/newsletters/latest.html | head -20 || echo "Les fichiers sont différents"
-        fi
-        
+    
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
