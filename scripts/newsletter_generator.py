@@ -462,6 +462,57 @@ def find_image_for_project(project_name, content, portfolio_directory):
     
     return None
 
+def generate_single_file_html(projects, display_date, output_directory, file_date, header_image_exists=False):
+    """
+    Génère un fichier HTML unique contenant tous les projets.
+    
+    Args:
+        projects (list): Liste des projets
+        display_date (str): Date d'affichage
+        output_directory (str): Répertoire de sortie
+        file_date (str): Date du fichier
+        header_image_exists (bool, optional): Indique si une image d'en-tête existe
+    
+    Returns:
+        str: Chemin du fichier HTML généré
+    """
+    try:
+        # Si aucun projet, retourner None
+        if not projects:
+            logger.warning("Aucun projet à générer dans le HTML")
+            return None
+        
+        # Générer un HTML minimal
+        html_content = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Newsletter Portfolio - {display_date}</title>
+</head>
+<body>
+    <h1>Newsletter Portfolio - {display_date}</h1>
+    
+    {"<p>Image d'en-tête disponible</p>" if header_image_exists else ""}
+    
+    {"".join([f"<h2>{project['title']}</h2><p>{project['description']}</p>" for project in projects])}
+</body>
+</html>"""
+        
+        # Chemin du fichier de sortie
+        html_filename = f"newsletter_{file_date}.html"
+        html_path = os.path.join(output_directory, html_filename)
+        
+        # Écrire le fichier HTML
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        logger.info(f"Fichier HTML généré : {html_path}")
+        return html_path
+    
+    except Exception as e:
+        logger.error(f"Erreur lors de la génération du fichier HTML : {e}")
+        return None
+
 
 def main():
     """
