@@ -179,7 +179,7 @@ jobs:
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         folder: newsletter-portfolio
-        branch: main
+        branch: gh-pages
         clean: true
     
     - name: Publication sur LinkedIn si le token est configuré
