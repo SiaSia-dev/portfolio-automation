@@ -62,7 +62,7 @@ jobs:
         ls -la newsletters/
       env:
         # Utiliser le chemin exact qui fonctionnait avant
-        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
+        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO/docs
         CONTENT_COUNT: 6
         REQUIRE_YAML: false
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
