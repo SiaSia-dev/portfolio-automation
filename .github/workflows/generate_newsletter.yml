@@ -16,10 +16,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Checkout du dépôt portfolio-automation
+      uses: actions/checkout@v3
+        
     - name: Checkout du dépôt PORTFOLIO
       uses: actions/checkout@v3
       with:
-        repository: SiaSia-dev/PORTFOLIO
+        repository: SiaSia-dev/PORTFOLIO 
+        path: PORTFOLIO
         token: ${{ secrets.DEPLOY_TOKEN }}
         ref: main 
     
@@ -37,14 +41,115 @@ jobs:
       run: |
         python scripts/newsletter_generator.py
       env:
-        PORTFOLIO_DIR: ${{ github.workspace }}
+        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
         
-    - name: Créer la structure du site
+    - name: Création de l'index et de la structure du site
       run: |
-        # Ajouter ici les commandes bash pour créer index.html, latest.html, etc.
-        # comme dans votre workflow initial
+        # Création d'un fichier index.html à la racine qui redirige vers la dernière newsletter
+        cat > newsletter-portfolio/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Récits visuels, horizons numériques</title>
+            <meta http-equiv="refresh" content="0;url=./newsletters/latest.html">
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                    padding: 40px;
+                    max-width: 800px;
+                    margin: 0 auto;
+                }
+                h1 {
+                    color: #333;
+                }
+                p {
+                    color: #666;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Récits visuels, horizons numériques</h1>
+            <p>Redirection vers la dernière newsletter...</p>
+            <p><a href="./newsletters/latest.html">Cliquez ici si vous n'êtes pas redirigé automatiquement</a></p>
+        </body>
+        </html>
+        EOF
         
+        # Création d'un fichier .nojekyll pour désactiver le traitement Jekyll
+        touch newsletter-portfolio/.nojekyll
+        
+        # Création d'un lien symbolique de la dernière newsletter
+        LATEST=$(find newsletters -name "*.html" -type f | sort -r | head -1)
+        if [ -n "$LATEST" ]; then
+          echo "Dernière newsletter trouvée: $LATEST"
+          cp "$LATEST" newsletter-portfolio/newsletters/latest.html
+        else
+          echo "ERREUR: Aucune newsletter trouvée dans le répertoire newsletters/"
+          # Créer un fichier de secours si aucune newsletter n'est trouvée
+          echo "<html><body><h1>Aucune newsletter disponible</h1></body></html>" > newsletter-portfolio/newsletters/latest.html
+        fi
+        
+        # Création d'une page d'archive
+        cat > newsletter-portfolio/newsletters/archives.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Archives - Récits visuels, horizons numériques</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 40px;
+                }
+                h1 {
+                    color: #333;
+                }
+                ul {
+                    list-style-type: none;
+                    padding: 0;
+                }
+                li {
+                    margin-bottom: 10px;
+                    padding: 10px;
+                    border-bottom: 1px solid #eee;
+                }
+                a {
+                    text-decoration: none;
+                    color: #0366d6;
+                }
+                a:hover {
+                    text-decoration: underline;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Archives des newsletters</h1>
+            <ul>
+        EOF
+        
+        # Ajouter les liens des newsletters
+        for file in $(find newsletters -name "*.html" -type f | grep -v "archives.html" | grep -v "latest.html" | sort -r); do
+            filename=$(basename "$file")
+            date=$(echo "$filename" | sed -E 's/newsletter_([0-9]{4})([0-9]{2})([0-9]{2}).*/\1-\2-\3/')
+            echo "<li><a href=\"./$filename\">Newsletter du $date</a></li>" >> newsletter-portfolio/newsletters/archives.html
+        done
+        
+        # Fermer les balises HTML
+        cat >> newsletter-portfolio/newsletters/archives.html << 'EOF'
+            </ul>
+            <p><a href="../index.html">Retour à la dernière newsletter</a></p>
+        </body>
+        </html>
+        EOF
+   
+
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
