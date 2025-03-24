@@ -21,32 +21,29 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+    - name: Checkout du dépôt portfolio-automation (dépôt actuel)
+      uses: actions/checkout@v3
+      with:
+        path: portfolio-automation
+    
     - name: Checkout du dépôt newsletter-portfolio
       uses: actions/checkout@v3
       with:
+        repository: SiaSia-dev/newsletter-portfolio
         path: newsletter-portfolio
+        token: ${{ secrets.GH_PAT }}
 
-    - name: Checkout du dépôt newsletter-portfolio
-      uses: actions/checkout@v3
-      with:
-        path: newsletter-portfolio
-
-    - name: Afficher le contenu du répertoire newsletter-portfolio
+    - name: Afficher le contenu du répertoire de travail
       run: |
-        ls -al newsletter-portfolio
+        ls -al
+        echo "Contenu de portfolio-automation:"
+        ls -la portfolio-automation
     
     - name: Checkout du dépôt portfolio
       uses: actions/checkout@v3
       with:
         repository: SiaSia-dev/PORTFOLIO
         path: PORTFOLIO
-        token: ${{ secrets.GH_PAT }}
-    
-    - name: Checkout du dépôt portfolio-automation
-      uses: actions/checkout@v3
-      with:
-        repository: SiaSia-dev/portfolio-automation
-        path: portfolio-automation
         token: ${{ secrets.GH_PAT }}
     
     - name: Configuration de Python
@@ -58,13 +55,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
-
-    - name: Afficher le contenu du répertoire de travail
+    
+    - name: Créer le répertoire de sortie pour les newsletters
       run: |
-        ls -al
-        ls -al newsletter-portfolio
-
-      
+        mkdir -p newsletters
+        mkdir -p newsletters/img
+    
     - name: Exécution du générateur de newsletter
       run: |
         python portfolio-automation/scripts/newsletter_generator.py
@@ -72,11 +68,24 @@ jobs:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
     
-    - name: Création du dossier newsletters dans le dépôt principal
+    - name: Vérifier le contenu du répertoire de newsletters généré
+      run: |
+        echo "Contenu du répertoire newsletters:"
+        ls -la newsletters/
+        echo "Contenu du répertoire newsletters/img (s'il existe):"
+        ls -la newsletters/img/ || echo "Dossier d'images non trouvé"
+    
+    - name: Copier les newsletters générées vers le dépôt de déploiement
       run: |
         mkdir -p newsletter-portfolio/newsletters
-        cp -R ${{ github.workspace }}/portfolio-automation/newsletters/* newsletter-portfolio/newsletters/
-
+        mkdir -p newsletter-portfolio/newsletters/img
+        cp -R newsletters/* newsletter-portfolio/newsletters/
+    
+    - name: Vérifier le contenu du répertoire de destination
+      run: |
+        echo "Contenu du répertoire newsletter-portfolio/newsletters:"
+        ls -la newsletter-portfolio/newsletters/
+    
     - name: Création de l'index et de la structure du site
       run: |
         # Création d'un fichier index.html à la racine qui redirige vers la dernière newsletter
@@ -117,7 +126,14 @@ jobs:
         
         # Création d'un lien symbolique de la dernière newsletter
         LATEST=$(ls -t newsletters/*.html | head -1)
-        cp "$LATEST" newsletter-portfolio/newsletters/latest.html
+        if [ -n "$LATEST" ]; then
+          echo "Dernière newsletter trouvée: $LATEST"
+          cp "$LATEST" newsletter-portfolio/newsletters/latest.html
+        else
+          echo "ERREUR: Aucune newsletter trouvée dans le répertoire newsletters/"
+          # Créer un fichier de secours si aucune newsletter n'est trouvée
+          echo "<html><body><h1>Aucune newsletter disponible</h1></body></html>" > newsletter-portfolio/newsletters/latest.html
+        fi
         
         # Création d'une page d'archive
         cat > newsletter-portfolio/newsletters/archives.html << 'EOF'
@@ -161,9 +177,9 @@ jobs:
         EOF
         
         # Ajouter les liens des newsletters
-        for file in $(ls -t newsletters/*.html | grep -v "archives.html" | grep -v "latest.html"); do
+        for file in $(find newsletters -name "*.html" -type f | grep -v "archives.html" | grep -v "latest.html" | sort -r); do
             filename=$(basename "$file")
-            date=$(echo "$filename" | sed -E 's/newsletter_([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/')
+            date=$(echo "$filename" | sed -E 's/newsletter_([0-9]{4})([0-9]{2})([0-9]{2}).*/\1-\2-\3/')
             echo "<li><a href=\"./$filename\">Newsletter du $date</a></li>" >> newsletter-portfolio/newsletters/archives.html
         done
         
@@ -177,10 +193,10 @@ jobs:
     - name: Configuration de GitHub Pages
       uses: actions/configure-pages@v3
     
-    - name: Création de l'artefact de déploiement
+    - name: Afficher la structure finale avant déploiement
       run: |
-        cd newsletter-portfolio
-        find . -type f -not -path "*/\.*" | sort
+        echo "Structure finale du répertoire newsletter-portfolio:"
+        find newsletter-portfolio -type f | sort
     
     - name: Préparer le déploiement
       run: |
@@ -188,17 +204,18 @@ jobs:
         git config --global user.name 'GitHub Actions Bot'
         git config --global user.email 'actions@github.com'
         git add .
-        git commit -m "Déploiement de la newsletter" || echo "Pas de nouveaux fichiers à committer"
+        git commit -m "Déploiement de la newsletter du $(date +'%Y-%m-%d')" || echo "Pas de nouveaux fichiers à committer"
 
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         folder: newsletter-portfolio
         branch: gh-pages
+        token: ${{ secrets.GH_PAT }}
         clean: true
     
     - name: Publication sur LinkedIn si le token est configuré
-      if: ${{ env.LINKEDIN_ACCESS_TOKEN != '' && env.LINKEDIN_PERSON_ID != '' }}
+      if: env.LINKEDIN_ACCESS_TOKEN != '' && env.LINKEDIN_PERSON_ID != ''
       run: |
         python portfolio-automation/scripts/linkedin_publisher.py
       env:
