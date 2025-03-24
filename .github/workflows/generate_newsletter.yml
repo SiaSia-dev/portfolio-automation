@@ -79,34 +79,13 @@ jobs:
           cp -rf newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image à copier"
         fi
     
-    # Création du fichier index.html minimal
-    - name: Créer un fichier index.html minimaliste
+    # Publication sur GitHub Pages
+    - name: Publier sur GitHub Pages
       run: |
-        echo "<html><head><meta http-equiv=\"refresh\" content=\"0;url=./newsletters/latest.html\"></head><body>Redirection...</body></html>" > newsletter-portfolio/index.html
+        python scripts/github_pages_publisher.py
+      env:
+        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
     
-    # Création du fichier .nojekyll
-    - name: Créer le fichier .nojekyll
-      run: touch newsletter-portfolio/.nojekyll
-    
-    # Vérification du contenu final
-    - name: Vérifier le contenu du dossier de destination
-      run: |
-        echo "Contenu du dossier newsletter-portfolio :"
-        ls -la newsletter-portfolio/
-        
-        echo "Contenu du dossier newsletter-portfolio/newsletters :"
-        ls -la newsletter-portfolio/newsletters/
-    
-    # Déploiement vers GitHub Pages
-    - name: Déploiement sur GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@v4
-      with:
-        branch: gh-pages
-        folder: newsletter-portfolio
-        repository-name: SiaSia-dev/newsletter-portfolio
-        token: ${{ secrets.DEPLOY_TOKEN }}
-        clean: true
-        
     # Notification email
     - name: Envoyer une notification par email
       uses: dawidd6/action-send-mail@v3
@@ -129,13 +108,3 @@ jobs:
           Bonne journée !
         to: ${{ secrets.NOTIFICATION_EMAIL }}
         from: Newsletter Portfolio <${{ secrets.MAIL_USERNAME }}>
-
-    - name: Force refresh GitHub Pages
-      run: |
-        cd newsletter-portfolio
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        git commit --allow-empty -m "Force refresh GitHub Pages"
-        git push origin gh-pages
-      env:
-        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
