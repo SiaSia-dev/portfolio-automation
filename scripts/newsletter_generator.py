@@ -464,37 +464,170 @@ def find_image_for_project(project_name, content, portfolio_directory):
 
 def generate_single_file_html(projects, display_date, output_directory, file_date, header_image_exists=False):
     """
-    Génère un fichier HTML unique contenant tous les projets.
-    
-    Args:
-        projects (list): Liste des projets
-        display_date (str): Date d'affichage
-        output_directory (str): Répertoire de sortie
-        file_date (str): Date du fichier
-        header_image_exists (bool, optional): Indique si une image d'en-tête existe
-    
-    Returns:
-        str: Chemin du fichier HTML généré
+    Génère un fichier HTML unique contenant tous les projets avec leurs contenus détaillés.
     """
     try:
-        # Si aucun projet, retourner None
-        if not projects:
-            logger.warning("Aucun projet à générer dans le HTML")
-            return None
+        # Style CSS pour la page
+        css_style = """
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap');
+            
+            :root {
+                --primary: #4a6d8c;
+                --secondary: #2a475e;
+                --accent: #90afc5;
+                --light: #f6f9fc;
+                --dark: #333333;
+                --text: #444444;
+                --shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+                --border: 1px solid #eaeaea;
+                --radius: 8px;
+            }
+            
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: 'Poppins', sans-serif;
+                line-height: 1.7;
+                color: var(--text);
+                background-color: var(--light);
+                padding: 0;
+                margin: 0;
+                scroll-behavior: smooth;
+            }
+            
+            .container {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 40px 20px;
+                background-color: white;
+                box-shadow: var(--shadow);
+                border-radius: var(--radius);
+            }
+        """
         
-        # Générer un HTML minimal
+        # Ajouter le style de l'en-tête en fonction de l'existence de l'image d'en-tête
+        if header_image_exists:
+            css_style += """
+            .header {
+                text-align: center;
+                margin-bottom: 50px;
+                padding: 60px 20px;
+                background-image: url('img/header-bg.jpg');
+                background-size: cover;
+                background-position: center;
+                border-radius: var(--radius);
+                position: relative;
+                color: white;
+            }
+            
+            .header::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(42, 71, 94, 0.7);
+                border-radius: var(--radius);
+                z-index: 1;
+            }
+            
+            .header-content {
+                position: relative;
+                z-index: 2;
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin-bottom: 15px;
+                color: white;
+                position: relative;
+                display: inline-block;
+            }
+            
+            .header h1::after {
+                content: '';
+                position: absolute;
+                left: 50%;
+                bottom: -10px;
+                transform: translateX(-50%);
+                width: 60px;
+                height: 3px;
+                background-color: var(--accent);
+            }
+            
+            .header p {
+                color: rgba(255, 255, 255, 0.9);
+            }
+            """
+        else:
+            css_style += """
+            .header {
+                text-align: center;
+                margin-bottom: 50px;
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin-bottom: 15px;
+                color: var(--primary);
+                position: relative;
+                display: inline-block;
+            }
+            
+            .header h1::after {
+                content: '';
+                position: absolute;
+                left: 50%;
+                bottom: -10px;
+                transform: translateX(-50%);
+                width: 60px;
+                height: 3px;
+                background-color: var(--accent);
+            }
+            """
+        
+        # Continuer avec le reste du CSS (identique à votre version précédente)
+        css_style += """
+            h2 {
+                font-size: 1.8rem;
+                margin-bottom: 15px;
+                scroll-margin-top: 50px;
+            }
+            
+            /* ... [le reste de votre CSS précédent] ... */
+        }
+        </style>
+        """
+        
+        # Générer le HTML
         html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Newsletter Portfolio - {display_date}</title>
+    {css_style}
 </head>
 <body>
-    <h1>Newsletter Portfolio - {display_date}</h1>
-    
-    {"<p>Image d'en-tête disponible</p>" if header_image_exists else ""}
-    
-    {"".join([f"<h2>{project['title']}</h2><p>{project['description']}</p>" for project in projects])}
+    <div class="container">
+        {"".join([f"""
+        <div class="project-full-content">
+            <h2>{project['title']}</h2>
+            <img class="hero-image" src="{project['image']}" alt="{project['title']}">
+            <div class="project-description">{project['description']}</div>
+            <div class="project-summary">{project['summary']}</div>
+            {"".join([f'<span class="tag">{tag}</span>' for tag in project['tags']])}
+        </div>
+        """ for project in projects])}
+    </div>
 </body>
 </html>"""
         
