@@ -56,37 +56,20 @@ jobs:
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
     
-    - name: Copier les fichiers vers newsletter-portfolio
-      run: |
-        # Assurez-vous que les dossiers existent
-        mkdir -p newsletter-portfolio/newsletters/img
-        
-        # Copier les fichiers HTML s'ils existent
-        cp -f newsletters/*.html newsletter-portfolio/newsletters/ || echo "Pas de fichiers HTML à copier"
-        
-        # Copier les images si elles existent
-        if [ -d "newsletters/img" ]; then
-          cp -rf newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Pas d'images à copier"
-        fi
-        
-        # Créer index.html
-        echo "Création du fichier index.html"
-        echo "<html><head><meta http-equiv='refresh' content='0;url=./newsletters/latest.html'></head><body>Redirection...</body></html>" > newsletter-portfolio/index.html
-        
-        # Créer .nojekyll
-        touch newsletter-portfolio/.nojekyll
-        
-        # Vérifier le contenu
-        ls -la newsletter-portfolio/newsletters/
+    - name: Copier les fichiers newsletter (partie 1)
+      run: mkdir -p newsletter-portfolio/newsletters
     
-    # Vérification des fichiers copiés
-    - name: Comparer les sorties
-      run: |
-        echo "Contenu généré pour portfolio-automation:"
-        ls -la newsletters/
-        
-        echo "Contenu généré pour newsletter-portfolio:"
-        ls -la newsletter-portfolio/newsletters/
+    - name: Copier les fichiers newsletter (partie 2)
+      run: cp -r newsletters/* newsletter-portfolio/newsletters/ || echo "Erreur de copie, mais continuons"
+    
+    - name: Créer le fichier index.html
+      run: echo "<html><head><meta http-equiv='refresh' content='0;url=./newsletters/latest.html'></head><body>Redirection...</body></html>" > newsletter-portfolio/index.html
+    
+    - name: Créer le fichier .nojekyll
+      run: touch newsletter-portfolio/.nojekyll
+    
+    - name: Vérifier les fichiers
+      run: ls -la newsletter-portfolio/newsletters/
     
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
