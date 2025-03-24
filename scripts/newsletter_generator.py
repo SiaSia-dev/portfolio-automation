@@ -253,6 +253,62 @@ def create_index_and_archives(output_directory, file_date, display_date):
         logger.error(f"Erreur lors de la création des fichiers index et archives: {e}")
         return False
 
+def copy_images_to_newsletter(portfolio_directory, output_directory):
+    """
+    Copie toutes les images du dossier img du PORTFOLIO vers le dossier img de la newsletter.
+    Retourne True si l'image d'en-tête existe, False sinon.
+    """
+    # Chemin vers le dossier img dans le dépôt PORTFOLIO
+    portfolio_img_dir = os.path.join(portfolio_directory, "img")
+    
+    # Chemin vers le dossier img dans le répertoire de sortie
+    output_img_dir = os.path.join(output_directory, "img")
+    
+    # Variable pour suivre si l'image d'en-tête existe
+    header_image_exists = False
+    
+    # Créer le dossier img s'il n'existe pas
+    if not os.path.exists(output_img_dir):
+        os.makedirs(output_img_dir)
+        logger.info(f"Dossier créé: {output_img_dir}")
+    
+    # Copier toutes les images
+    if os.path.exists(portfolio_img_dir):
+        copied_count = 0
+        for filename in os.listdir(portfolio_img_dir):
+            if any(filename.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp']):
+                src_path = os.path.join(portfolio_img_dir, filename)
+                dest_path = os.path.join(output_img_dir, filename)
+                try:
+                    shutil.copy2(src_path, dest_path)
+                    copied_count += 1
+                    
+                    # Vérifier si c'est l'image d'en-tête
+                    if filename == "header-bg.jpg":
+                        header_image_exists = True
+                        
+                except Exception as e:
+                    logger.error(f"Erreur lors de la copie de l'image {src_path}: {e}")
+        
+        logger.info(f"{copied_count} images copiées du dépôt PORTFOLIO vers le dossier newsletter/img")
+        
+        # Copier l'image d'en-tête si elle existe
+        header_image_path = os.path.join(portfolio_img_dir, "Slowsia.jpg")
+        if os.path.exists(header_image_path):
+            header_dest_path = os.path.join(output_img_dir, "header-bg.jpg")
+            try:
+                shutil.copy2(header_image_path, header_dest_path)
+                logger.info(f"Image d'en-tête copiée: {header_dest_path}")
+                header_image_exists = True
+            except Exception as e:
+                logger.error(f"Erreur lors de la copie de l'image d'en-tête: {e}")
+        else:
+            logger.warning("Image d'en-tête 'Slowsia.jpg' non trouvée dans le dossier img")
+    else:
+        logger.warning(f"Dossier d'images non trouvé: {portfolio_img_dir}")
+    
+    return header_image_exists
+
 
 def main():
     """
