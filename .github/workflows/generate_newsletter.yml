@@ -25,20 +25,14 @@ jobs:
         token: ${{ secrets.DEPLOY_TOKEN }}
         ref: main 
     
-    - name: Vérifier la structure du dépôt PORTFOLIO
+    - name: Vérifier le contenu du dépôt PORTFOLIO
       run: |
-        echo "Contenu du dépôt PORTFOLIO:"
+        echo "Structure du dépôt PORTFOLIO :"
         ls -la PORTFOLIO/
-        
-        if [ -d "PORTFOLIO/docs" ]; then
-          echo "Dossier docs trouvé. Contenu:"
-          ls -la PORTFOLIO/docs/
-        else
-          echo "ATTENTION: Le dossier docs n'existe pas dans le dépôt PORTFOLIO!"
-        fi
-        
-        echo "Recherche de fichiers markdown:"
-        find PORTFOLIO -name "*.md" | sort
+        echo "Structure du dossier docs :"
+        ls -la PORTFOLIO/docs/ || echo "Le dossier docs n'existe pas"
+        echo "Structure du dossier img :"
+        ls -la PORTFOLIO/img/ || echo "Le dossier img n'existe pas"
     
     - name: Checkout du dépôt newsletter-portfolio
       uses: actions/checkout@v3
@@ -58,75 +52,128 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
     
-    # Modification importante : utilisation de PORTFOLIO directement comme docs_directory
+    # Génération de la newsletter
     - name: Exécuter le générateur de newsletter
       run: |
-        # Modification temporaire du script pour afficher plus d'informations
-        sed -i 's/logger\.info(f"Recherche de fichiers Markdown récents dans {docs_directory}")/logger.info(f"DBUG: portfolio_directory={portfolio_directory}, docs_directory={docs_directory}")/' scripts/newsletter_generator.py
-        
-        # Dans ce cas, docs_directory sera déjà le chemin vers le dossier contenant les .md
-        # Nous contournons donc la logique qui ajoute '/docs' au chemin
+        echo "Génération de la newsletter..."
         python scripts/newsletter_generator.py
       env:
-        # IMPORTANT: on définit PORTFOLIO_DIR pour qu'il pointe vers le dossier contenant les fichiers .md
-        # Si les fichiers sont dans PORTFOLIO/docs, utilisez cette ligne:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
-        # Si les fichiers sont à la racine de PORTFOLIO, décommentez cette ligne à la place:
-        # PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
-        # Pour définir directement le dossier docs, essayez cette approche:
-        DOCS_DIRECTORY: ${{ github.workspace }}/PORTFOLIO/docs
         CONTENT_COUNT: 6
         REQUIRE_YAML: false
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
+        CREATE_INDEX: true
+        CREATE_LATEST: true
+        CREATE_ARCHIVES: true
     
     - name: Vérifier les fichiers générés
-      run: |
-        echo "Contenu du dossier newsletters:"
-        ls -la newsletters/ || echo "Le dossier newsletters n'existe pas ou est vide"
-        
-        if [ -f "newsletters/latest.html" ]; then
-          echo "Le fichier latest.html existe. Taille:"
-          wc -l newsletters/latest.html
-        else
-          echo "ERREUR: Le fichier latest.html n'existe pas!"
-        fi
-    
-    - name: Préparer le dossier de destination
-      run: mkdir -p newsletter-portfolio/newsletters
-    
-    - name: Copier les fichiers générés vers newsletter-portfolio
-      run: |
-        # Copier tous les fichiers HTML
-        cp -r newsletters/*.html newsletter-portfolio/newsletters/ || echo "Aucun fichier HTML à copier"
-        
-        # Copier le dossier img s'il existe
-        if [ -d "newsletters/img" ]; then
-          mkdir -p newsletter-portfolio/newsletters/img
-          cp -r newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image à copier"
-        fi
-        
-        # Créer fichier index.html simple
-        echo "<html><head><title>Newsletter Portfolio</title><meta http-equiv='refresh' content='0;url=./newsletters/latest.html'></head><body>Redirection...</body></html>" > newsletter-portfolio/index.html
-        
-        # Créer .nojekyll
-        touch newsletter-portfolio/.nojekyll
-    
-    - name: Vérifier les fichiers avant déploiement
       run: |
         echo "Contenu du dossier newsletters :"
         ls -la newsletters/ || echo "Le dossier newsletters n'existe pas"
         
-        echo "Contenu du dossier newsletter-portfolio/newsletters :"
-        ls -la newsletter-portfolio/newsletters/ || echo "Le dossier newsletter-portfolio/newsletters n'existe pas"
+        if [ -f "newsletters/latest.html" ]; then
+          echo "Le fichier latest.html existe."
+          head -20 newsletters/latest.html
+        else
+          echo "Le fichier latest.html n'existe pas!"
+        fi
     
+    # Nettoyage du répertoire de destination
+    - name: Préparer le dossier de destination
+      run: |
+        # Supprimer les anciens fichiers tout en préservant .git
+        mkdir -p newsletter-portfolio/newsletters
+        find newsletter-portfolio/newsletters -type f -not -path "*/\.*" -delete || echo "Pas de fichiers à supprimer"
+    
+    # Copie explicite fichier par fichier
+    - name: Copier les fichiers HTML et les ressources
+      run: |
+        echo "Copie des fichiers depuis newsletters/ vers newsletter-portfolio/newsletters/"
+        
+        # 1. Copier les fichiers HTML
+        for file in newsletters/*.html; do
+          if [ -f "$file" ]; then
+            echo "Copie de $file"
+            cp "$file" newsletter-portfolio/newsletters/
+          fi
+        done
+        
+        # 2. Créer et copier le dossier img
+        if [ -d "newsletters/img" ]; then
+          echo "Copie du dossier img"
+          mkdir -p newsletter-portfolio/newsletters/img
+          cp -r newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image à copier"
+        fi
+        
+        # 3. Copier le fichier index.html
+        if [ -f "index.html" ]; then
+          echo "Copie du fichier index.html"
+          cp index.html newsletter-portfolio/
+        else
+          echo "Création d'un fichier index.html"
+          cat > newsletter-portfolio/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Récits visuels, horizons numériques</title>
+    <meta http-equiv="refresh" content="0;url=./newsletters/latest.html">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+        }
+        p {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>Récits visuels, horizons numériques</h1>
+    <p>Redirection vers la dernière newsletter...</p>
+    <p><a href="./newsletters/latest.html">Cliquez ici si vous n'êtes pas redirigé automatiquement</a></p>
+</body>
+</html>
+EOF
+        fi
+        
+        # 4. Créer le fichier .nojekyll
+        touch newsletter-portfolio/.nojekyll
+    
+    - name: Vérifier le contenu du dossier de destination
+      run: |
+        echo "Contenu du dossier newsletter-portfolio :"
+        ls -la newsletter-portfolio/
+        
+        echo "Contenu du dossier newsletter-portfolio/newsletters :"
+        ls -la newsletter-portfolio/newsletters/
+        
+        if [ -f "newsletter-portfolio/newsletters/latest.html" ]; then
+          echo "Le fichier latest.html existe dans le dossier de destination."
+          head -20 newsletter-portfolio/newsletters/latest.html
+        else
+          echo "ERREUR: Le fichier latest.html n'existe pas dans le dossier de destination!"
+        fi
+    
+    # Déploiement vers le dépôt newsletter-portfolio en utilisant JamesIves/github-pages-deploy-action
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
-        repository: SiaSia-dev/newsletter-portfolio
         branch: gh-pages
         folder: newsletter-portfolio
+        repository-name: SiaSia-dev/newsletter-portfolio
         token: ${{ secrets.DEPLOY_TOKEN }}
         clean: true
+        git-config-name: GitHub Actions
+        git-config-email: actions@github.com
+        commit-message: "Mise à jour de la newsletter - $(date +'%Y-%m-%d %H:%M:%S')"
         
     - name: Envoyer une notification par email
       uses: dawidd6/action-send-mail@v3
