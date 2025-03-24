@@ -2,7 +2,7 @@ name: Publication sur LinkedIn
 
 on:
   workflow_run:
-    workflows: ["Génération de Newsletter LinkedIn"]
+    workflows: ["Génération et Déploiement de Newsletter"]
     types:
       - completed
   workflow_dispatch:  # Permet de lancer manuellement
