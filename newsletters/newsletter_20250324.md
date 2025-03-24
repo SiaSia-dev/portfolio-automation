@@ -33,6 +33,20 @@ Trésor d'Eauze : Patrimoine Numérique Interactif Présentation du Projet Un pr
 
 ---
 
+## Prototype de Suivi Pédagogique
+
+Prototype de Suivi Pédagogique
+Présentation du Projet
+Un prototype d'application conçu pour aider au suivi et à l'analyse de la progression des appren...
+
+Prototype de Suivi Pédagogique Présentation du Projet Un prototype d'application conçu pour aider au suivi et à l'analyse de la progression des apprenants. Fonctionnalités Principales Suivi de la progression des apprenants Génération de rapports d'an...
+
+**Tags**: #portfolio
+
+[En savoir plus](#)
+
+---
+
 ## Vision Professionnelle
 
 Vision Professionnelle
@@ -60,20 +74,6 @@ Essence
 Transformer le comple...
 
 Principes Fondamentaux Les Piliers de ma Démarche Créative et Analytique 1. Clarté : Rendre l'Impossible Compréhensible Essence Transformer le complexe en accessible Démystifier les concepts techniques Créer des ponts de compréhension Stratégies Déco...
-
-**Tags**: #portfolio
-
-[En savoir plus](#)
-
----
-
-## Prototype de Suivi Pédagogique
-
-Prototype de Suivi Pédagogique
-Présentation du Projet
-Un prototype d'application conçu pour aider au suivi et à l'analyse de la progression des appren...
-
-Prototype de Suivi Pédagogique Présentation du Projet Un prototype d'application conçu pour aider au suivi et à l'analyse de la progression des apprenants. Fonctionnalités Principales Suivi de la progression des apprenants Génération de rapports d'an...
 
 **Tags**: #portfolio
 
