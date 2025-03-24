@@ -25,15 +25,6 @@ jobs:
         token: ${{ secrets.DEPLOY_TOKEN }}
         ref: main 
     
-    - name: Vérifier le contenu du dépôt PORTFOLIO
-      run: |
-        echo "Structure du dépôt PORTFOLIO :"
-        ls -la PORTFOLIO/
-        echo "Structure du dossier docs :"
-        ls -la PORTFOLIO/docs/ || echo "Le dossier docs n'existe pas"
-        echo "Structure du dossier img :"
-        ls -la PORTFOLIO/img/ || echo "Le dossier img n'existe pas"
-    
     - name: Checkout du dépôt newsletter-portfolio
       uses: actions/checkout@v3
       with:
@@ -58,7 +49,7 @@ jobs:
         echo "Génération de la newsletter..."
         python scripts/newsletter_generator.py
       env:
-        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
+        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO/docs
         CONTENT_COUNT: 6
         REQUIRE_YAML: false
         OUTPUT_DIR: ${{ github.workspace }}/newsletters
@@ -70,83 +61,52 @@ jobs:
       run: |
         echo "Contenu du dossier newsletters :"
         ls -la newsletters/ || echo "Le dossier newsletters n'existe pas"
-        
-        if [ -f "newsletters/latest.html" ]; then
-          echo "Le fichier latest.html existe."
-          head -20 newsletters/latest.html
-        else
-          echo "Le fichier latest.html n'existe pas!"
-        fi
     
-    # Nettoyage du répertoire de destination
+    # Préparation du dossier de destination
     - name: Préparer le dossier de destination
-      run: |
-        # Supprimer les anciens fichiers tout en préservant .git
-        mkdir -p newsletter-portfolio/newsletters
-        find newsletter-portfolio/newsletters -type f -not -path "*/\.*" -delete || echo "Pas de fichiers à supprimer"
+      run: mkdir -p newsletter-portfolio/newsletters
     
-    # Copie explicite fichier par fichier
-    - name: Copier les fichiers HTML et les ressources
+    # Copie des fichiers HTML
+    - name: Copier les fichiers HTML
       run: |
-        echo "Copie des fichiers depuis newsletters/ vers newsletter-portfolio/newsletters/"
-        
-        # 1. Copier les fichiers HTML
-        for file in newsletters/*.html; do
-          if [ -f "$file" ]; then
-            echo "Copie de $file"
-            cp "$file" newsletter-portfolio/newsletters/
-          fi
-        done
-        
-        # 2. Créer et copier le dossier img
+        cp -f newsletters/*.html newsletter-portfolio/newsletters/ || echo "Aucun fichier HTML à copier"
+    
+    # Copie des images
+    - name: Copier les images
+      run: |
         if [ -d "newsletters/img" ]; then
-          echo "Copie du dossier img"
           mkdir -p newsletter-portfolio/newsletters/img
-          cp -r newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image à copier"
+          cp -rf newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image à copier"
         fi
-        
-        # 3. Copier le fichier index.html
-        if [ -f "index.html" ]; then
-          echo "Copie du fichier index.html"
-          cp index.html newsletter-portfolio/
-        else
-          echo "Création d'un fichier index.html"
-          cat > newsletter-portfolio/index.html << 'EOF'
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Récits visuels, horizons numériques</title>
-    <meta http-equiv="refresh" content="0;url=./newsletters/latest.html">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 40px;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        h1 {
-            color: #333;
-        }
-        p {
-            color: #666;
-        }
-    </style>
-</head>
-<body>
-    <h1>Récits visuels, horizons numériques</h1>
-    <p>Redirection vers la dernière newsletter...</p>
-    <p><a href="./newsletters/latest.html">Cliquez ici si vous n'êtes pas redirigé automatiquement</a></p>
-</body>
-</html>
-EOF
-        fi
-        
-        # 4. Créer le fichier .nojekyll
-        touch newsletter-portfolio/.nojekyll
     
+    # Création du fichier index.html ligne par ligne
+    - name: Créer le fichier index.html
+      run: |
+        echo '<!DOCTYPE html>' > newsletter-portfolio/index.html
+        echo '<html lang="fr">' >> newsletter-portfolio/index.html
+        echo '<head>' >> newsletter-portfolio/index.html
+        echo '    <meta charset="UTF-8">' >> newsletter-portfolio/index.html
+        echo '    <meta name="viewport" content="width=device-width, initial-scale=1.0">' >> newsletter-portfolio/index.html
+        echo '    <title>Récits visuels, horizons numériques</title>' >> newsletter-portfolio/index.html
+        echo '    <meta http-equiv="refresh" content="0;url=./newsletters/latest.html">' >> newsletter-portfolio/index.html
+        echo '    <style>' >> newsletter-portfolio/index.html
+        echo '        body { font-family: Arial, sans-serif; text-align: center; padding: 40px; max-width: 800px; margin: 0 auto; }' >> newsletter-portfolio/index.html
+        echo '        h1 { color: #333; }' >> newsletter-portfolio/index.html
+        echo '        p { color: #666; }' >> newsletter-portfolio/index.html
+        echo '    </style>' >> newsletter-portfolio/index.html
+        echo '</head>' >> newsletter-portfolio/index.html
+        echo '<body>' >> newsletter-portfolio/index.html
+        echo '    <h1>Récits visuels, horizons numériques</h1>' >> newsletter-portfolio/index.html
+        echo '    <p>Redirection vers la dernière newsletter...</p>' >> newsletter-portfolio/index.html
+        echo '    <p><a href="./newsletters/latest.html">Cliquez ici si vous n\'êtes pas redirigé automatiquement</a></p>' >> newsletter-portfolio/index.html
+        echo '</body>' >> newsletter-portfolio/index.html
+        echo '</html>' >> newsletter-portfolio/index.html
+    
+    # Création du fichier .nojekyll
+    - name: Créer le fichier .nojekyll
+      run: touch newsletter-portfolio/.nojekyll
+    
+    # Vérification du contenu final
     - name: Vérifier le contenu du dossier de destination
       run: |
         echo "Contenu du dossier newsletter-portfolio :"
@@ -154,15 +114,8 @@ EOF
         
         echo "Contenu du dossier newsletter-portfolio/newsletters :"
         ls -la newsletter-portfolio/newsletters/
-        
-        if [ -f "newsletter-portfolio/newsletters/latest.html" ]; then
-          echo "Le fichier latest.html existe dans le dossier de destination."
-          head -20 newsletter-portfolio/newsletters/latest.html
-        else
-          echo "ERREUR: Le fichier latest.html n'existe pas dans le dossier de destination!"
-        fi
     
-    # Déploiement vers le dépôt newsletter-portfolio en utilisant JamesIves/github-pages-deploy-action
+    # Déploiement vers GitHub Pages
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
@@ -171,10 +124,8 @@ EOF
         repository-name: SiaSia-dev/newsletter-portfolio
         token: ${{ secrets.DEPLOY_TOKEN }}
         clean: true
-        git-config-name: GitHub Actions
-        git-config-email: actions@github.com
-        commit-message: "Mise à jour de la newsletter - $(date +'%Y-%m-%d %H:%M:%S')"
         
+    # Notification email
     - name: Envoyer une notification par email
       uses: dawidd6/action-send-mail@v3
       with:
