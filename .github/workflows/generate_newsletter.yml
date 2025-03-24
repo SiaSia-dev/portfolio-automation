@@ -65,7 +65,8 @@ jobs:
     - name: Création de l'index et de la structure du site
       run: |
         # Création d'un fichier index.html à la racine qui redirige vers la dernière newsletter
-        echo '<!DOCTYPE html>
+        cat > newsletter-portfolio/index.html << 'EOF'
+        <!DOCTYPE html>
         <html lang="fr">
         <head>
             <meta charset="UTF-8">
@@ -93,17 +94,19 @@ jobs:
             <p>Redirection vers la dernière newsletter...</p>
             <p><a href="./newsletters/latest.html">Cliquez ici si vous n'êtes pas redirigé automatiquement</a></p>
         </body>
-        </html>' > newsletter-portfolio/index.html
+        </html>
+        EOF
         
         # Création d'un fichier .nojekyll pour désactiver le traitement Jekyll
         touch newsletter-portfolio/.nojekyll
         
         # Création d'un lien symbolique de la dernière newsletter
         LATEST=$(ls -t newsletters/*.html | head -1)
-        cp $LATEST newsletter-portfolio/newsletters/latest.html
+        cp "$LATEST" newsletter-portfolio/newsletters/latest.html
         
         # Création d'une page d'archive
-        echo '<!DOCTYPE html>
+        cat > newsletter-portfolio/newsletters/archives.html << 'EOF'
+        <!DOCTYPE html>
         <html lang="fr">
         <head>
             <meta charset="UTF-8">
@@ -139,17 +142,22 @@ jobs:
         </head>
         <body>
             <h1>Archives des newsletters</h1>
-            <ul>' > newsletter-portfolio/newsletters/archives.html
-            
+            <ul>
+        EOF
+        
+        # Ajouter les liens des newsletters
         for file in $(ls -t newsletters/*.html | grep -v "archives.html" | grep -v "latest.html"); do
-            filename=$(basename $file)
-            date=$(echo $filename | sed -E 's/newsletter_([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/')
+            filename=$(basename "$file")
+            date=$(echo "$filename" | sed -E 's/newsletter_([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/')
             echo "<li><a href=\"./$filename\">Newsletter du $date</a></li>" >> newsletter-portfolio/newsletters/archives.html
         done
         
-        echo '    </ul>
+        # Fermer les balises HTML
+        cat >> newsletter-portfolio/newsletters/archives.html << 'EOF'
+            </ul>
         </body>
-        </html>' >> newsletter-portfolio/newsletters/archives.html
+        </html>
+        EOF
     
     - name: Configuration de GitHub Pages
       uses: actions/configure-pages@v3
