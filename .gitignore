@@ -45,3 +45,4 @@ dist/
 # Sauvegarde
 *.bak
 *.backup
+.gh-pages-temp/
