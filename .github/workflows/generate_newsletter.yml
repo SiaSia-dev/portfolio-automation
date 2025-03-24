@@ -43,28 +43,74 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
     
-    - name: Exécuter le générateur de newsletter
+    # Génération dans le dépôt portfolio-automation (qui fonctionne bien)
+    - name: Exécuter le générateur de newsletter pour portfolio-automation
       run: |
         python scripts/newsletter_generator.py
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO/docs
         CONTENT_COUNT: 6
         REQUIRE_YAML: false
-        OUTPUT_DIR: ${{ github.workspace }}/newsletter-portfolio/newsletters
+        OUTPUT_DIR: ${{ github.workspace }}/newsletters
         CREATE_INDEX: true
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
+    
+    # ÉTAPE MANQUANTE AJOUTÉE : Copier les fichiers vers newsletter-portfolio
+    - name: Copier les fichiers de portfolio-automation vers newsletter-portfolio
+      run: |
+        echo "Copie des fichiers de newsletters vers newsletter-portfolio/newsletters"
+        # Assurez-vous que le dossier de destination existe
+        mkdir -p newsletter-portfolio/newsletters/img
+        
+        # Copiez tous les fichiers HTML générés
+        cp -f newsletters/*.html newsletter-portfolio/newsletters/
+        
+        # Copiez les images si elles existent
+        if [ -d "newsletters/img" ]; then
+          cp -rf newsletters/img/* newsletter-portfolio/newsletters/img/
+        fi
+        
+        # Créer le fichier index.html à la racine si nécessaire
+        if [ ! -f "newsletter-portfolio/index.html" ]; then
+          cp -f index.html newsletter-portfolio/ || echo "Pas de fichier index.html à copier"
+        fi
+        
+        # Assurez-vous que le fichier .nojekyll existe
+        touch newsletter-portfolio/.nojekyll
+        
+        # Vérifiez que la copie a fonctionné
+        echo "Contenu après copie:"
+        ls -la newsletter-portfolio/newsletters/
+    
+    # Vérification des fichiers copiés
+    - name: Comparer les sorties
+      run: |
+        echo "Contenu généré pour portfolio-automation:"
+        ls -la newsletters/
+        
+        echo "Contenu généré pour newsletter-portfolio:"
+        ls -la newsletter-portfolio/newsletters/
+        
+        echo "Comparaison des fichiers HTML:"
+        if [ -f "newsletters/latest.html" ] && [ -f "newsletter-portfolio/newsletters/latest.html" ]; then
+          echo "Taille du fichier dans portfolio-automation:"
+          wc -l newsletters/latest.html
+          echo "Taille du fichier dans newsletter-portfolio:"
+          wc -l newsletter-portfolio/newsletters/latest.html
+          
+          echo "Différences entre les deux fichiers:"
+          diff -u newsletters/latest.html newsletter-portfolio/newsletters/latest.html | head -20 || echo "Les fichiers sont différents"
+        fi
         
     - name: Déploiement sur GitHub Pages
-      run: |
-        cd newsletter-portfolio
-        git config --global user.name 'GitHub Actions'
-        git config --global user.email 'actions@github.com'
-        git add .
-        git commit -m "Mise à jour de la newsletter"
-        git push origin gh-pages
-      env:
-        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        repository: SiaSia-dev/newsletter-portfolio
+        branch: gh-pages
+        folder: newsletter-portfolio
+        token: ${{ secrets.DEPLOY_TOKEN }}
+        clean: true
         
     - name: Envoyer une notification par email
       uses: dawidd6/action-send-mail@v3
