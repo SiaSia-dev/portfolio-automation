@@ -310,107 +310,181 @@ def copy_images_to_newsletter(portfolio_directory, output_directory):
     return header_image_exists
 
 
-def generate_newsletter_content(md_files, portfolio_directory, output_directory, display_date):
+def generate_single_file_html(projects, display_date, output_directory, file_date, header_image_exists=False):
     """
-    Génère le contenu de la newsletter à partir des fichiers Markdown.
+    Génère un fichier HTML unique contenant tous les projets avec leurs contenus détaillés.
     """
-    if not md_files:
-        logger.warning("Aucun fichier Markdown récent trouvé")
-        return "Aucun contenu récent disponible pour cette newsletter.", []
+    try:
+        # Style CSS pour la page
+        css_style = """
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap');
+            
+            :root {
+                --primary: #4a6d8c;
+                --secondary: #2a475e;
+                --accent: #90afc5;
+                --light: #f6f9fc;
+                --dark: #333333;
+                --text: #444444;
+                --shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+                --border: 1px solid #eaeaea;
+                --radius: 8px;
+            }
+            
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: 'Poppins', sans-serif;
+                line-height: 1.7;
+                color: var(--text);
+                background-color: var(--light);
+                padding: 0;
+                margin: 0;
+                scroll-behavior: smooth;
+            }
+            
+            .container {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 40px 20px;
+                background-color: white;
+                box-shadow: var(--shadow);
+                border-radius: var(--radius);
+            }
+        """
+        
+        # Ajouter le style de l'en-tête en fonction de l'existence de l'image d'en-tête
+        if header_image_exists:
+            css_style += """
+            .header {
+                text-align: center;
+                margin-bottom: 50px;
+                padding: 60px 20px;
+                background-image: url('img/header-bg.jpg');
+                background-size: cover;
+                background-position: center;
+                border-radius: var(--radius);
+                position: relative;
+                color: white;
+            }
+            
+            .header::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(42, 71, 94, 0.7);
+                border-radius: var(--radius);
+                z-index: 1;
+            }
+            
+            .header-content {
+                position: relative;
+                z-index: 2;
+            }
+            """
+        
+        # Continuer avec le reste du CSS
+        css_style += """
+            h2 {
+                font-size: 1.8rem;
+                margin-bottom: 15px;
+                scroll-margin-top: 50px;
+            }
+            
+            .project-full-content {
+                padding: 40px;
+                margin-bottom: 60px;
+                background-color: white;
+                border-radius: var(--radius);
+                box-shadow: var(--shadow);
+            }
+            
+            .hero-image {
+                width: 100%;
+                max-height: 400px;
+                object-fit: cover;
+                border-radius: var(--radius);
+                margin-bottom: 30px;
+            }
+            
+            .tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: 20px;
+            }
+            
+            .tag {
+                background-color: var(--light);
+                color: var(--primary);
+                padding: 5px 12px;
+                border-radius: 20px;
+                font-size: 0.75rem;
+                font-weight: 500;
+            }
+        }
+        </style>
+        """
+        
+        # Générer le contenu HTML des projets
+        projects_html = ""
+        for project in projects:
+            # Générer les tags HTML
+            tags_html = ""
+            if project['tags']:
+                tags_html = '<div class="tags">' + ''.join([
+                    f'<span class="tag">{tag}</span>' for tag in project['tags']
+                ]) + '</div>'
+            
+            # Ajouter le projet au HTML
+            projects_html += f"""
+        <div id="{project['id']}" class="project-full-content">
+            <h2>{project['title']}</h2>
+            <img class="hero-image" src="{project['image']}" alt="{project['title']}" loading="lazy">
+            <div class="project-description">{project['description']}</div>
+            <div class="project-summary">{project['summary']}</div>
+            {tags_html}
+        </div>
+        """
+        
+        # HTML complet
+        html_content = f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newsletter Portfolio - {display_date}</title>
+    {css_style}
+</head>
+<body>
+    <div class="container">
+        {projects_html}
+    </div>
+</body>
+</html>"""
+        
+        # Chemin du fichier de sortie
+        html_filename = f"newsletter_{file_date}.html"
+        html_path = os.path.join(output_directory, html_filename)
+        
+        # Écrire le fichier HTML
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        logger.info(f"Fichier HTML généré : {html_path}")
+        return html_path
     
-    newsletter_content = f"""# Newsletter Portfolio - {display_date}
-
-Découvrez mes derniers projets et réalisations !
-
-"""
-    
-    # Liste pour stocker les informations de projet pour le HTML
-    projects = []
-    
-    for file_info in md_files:
-        metadata, content = extract_metadata_and_content(file_info['path'])
-        
-        # Extraire le titre, description, tags et URL du projet
-        title = metadata.get('title', os.path.splitext(file_info['filename'])[0])
-        description = metadata.get('description', '')
-        tags = metadata.get('tags', [])
-        url = metadata.get('url', '')
-        
-        # Trouver une image pour le projet
-        image_path = find_image_for_project(title, content, portfolio_directory)
-        image_filename = os.path.basename(image_path) if image_path else ""
-        
-        # Si une image a été trouvée, la copier dans le dossier img de la newsletter
-        if image_path and os.path.exists(image_path):
-            output_img_dir = os.path.join(output_directory, "img")
-            os.makedirs(output_img_dir, exist_ok=True)
-            output_image_path = os.path.join(output_img_dir, image_filename)
-            try:
-                shutil.copy2(image_path, output_image_path)
-            except Exception as e:
-                logger.error(f"Erreur lors de la copie de l'image {image_path}: {e}")
-        
-        image_rel_path = f"img/{image_filename}" if image_filename else ""
-        
-        # Si aucune image n'a été trouvée, utiliser un placeholder
-        if not image_rel_path:
-            image_rel_path = f"https://via.placeholder.com/600x400?text={title.replace(' ', '+')}"
-        
-        # Convertir le contenu markdown en HTML
-        html_content = markdown.markdown(content)
-        
-        # Nettoyer le HTML pour un résumé
-        soup = BeautifulSoup(html_content, 'html.parser')
-        clean_text = soup.get_text(separator=' ', strip=True)
-        
-        # Limiter le contenu pour l'aperçu
-        summary = clean_text[:250] + "..." if len(clean_text) > 250 else clean_text
-        
-        # Créer une section pour ce projet dans le Markdown
-        newsletter_content += f"""## {title}
-
-{description}
-
-{summary}
-
-"""
-        
-        # Ajouter les tags s'ils existent
-        if tags:
-            tags_str = ', '.join([f"#{tag}" for tag in tags])
-            newsletter_content += f"**Tags**: {tags_str}\n\n"
-        
-        # Ajouter un lien si disponible
-        newsletter_content += f"[En savoir plus]({url or '#'})\n\n"
-        
-        newsletter_content += "---\n\n"
-        
-        # Stocker les informations pour le HTML
-        projects.append({
-            'title': title,
-            'description': description,
-            'content': content,
-            'html_content': html_content,
-            'summary': summary,
-            'tags': tags,
-            'url': url,
-            'image': image_rel_path,
-            'filename': file_info['filename'],
-            'path': file_info['path'],
-            'id': f"project-{os.path.splitext(file_info['filename'])[0]}"  # ID unique pour l'ancre
-        })
-    
-    # Ajouter une signature
-    newsletter_content += """
-## Restons connectés !
-
-N'hésitez pas à me contacter pour discuter de projets ou simplement échanger sur nos domaines d'intérêt communs.
-
-- [Portfolio](https://portfolio-af-v2.netlify.app/)
-- [LinkedIn](https://www.linkedin.com/in/alexiafontaine)
-"""
-    
-    return newsletter_content, projects
+    except Exception as e:
+        logger.error(f"Erreur lors de la génération du fichier HTML : {e}")
+        return None
 
 def save_newsletter(content, output_directory, file_date):
     """
