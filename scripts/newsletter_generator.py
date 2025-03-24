@@ -310,6 +310,159 @@ def copy_images_to_newsletter(portfolio_directory, output_directory):
     return header_image_exists
 
 
+def generate_newsletter_content(md_files, portfolio_directory, output_directory, display_date):
+    """
+    Génère le contenu de la newsletter à partir des fichiers Markdown.
+    """
+    if not md_files:
+        logger.warning("Aucun fichier Markdown récent trouvé")
+        return "Aucun contenu récent disponible pour cette newsletter.", []
+    
+    newsletter_content = f"""# Newsletter Portfolio - {display_date}
+
+Découvrez mes derniers projets et réalisations !
+
+"""
+    
+    # Liste pour stocker les informations de projet pour le HTML
+    projects = []
+    
+    for file_info in md_files:
+        metadata, content = extract_metadata_and_content(file_info['path'])
+        
+        # Extraire le titre, description, tags et URL du projet
+        title = metadata.get('title', os.path.splitext(file_info['filename'])[0])
+        description = metadata.get('description', '')
+        tags = metadata.get('tags', [])
+        url = metadata.get('url', '')
+        
+        # Trouver une image pour le projet
+        image_path = find_image_for_project(title, content, portfolio_directory)
+        image_filename = os.path.basename(image_path) if image_path else ""
+        
+        # Si une image a été trouvée, la copier dans le dossier img de la newsletter
+        if image_path and os.path.exists(image_path):
+            output_img_dir = os.path.join(output_directory, "img")
+            os.makedirs(output_img_dir, exist_ok=True)
+            output_image_path = os.path.join(output_img_dir, image_filename)
+            try:
+                shutil.copy2(image_path, output_image_path)
+            except Exception as e:
+                logger.error(f"Erreur lors de la copie de l'image {image_path}: {e}")
+        
+        image_rel_path = f"img/{image_filename}" if image_filename else ""
+        
+        # Si aucune image n'a été trouvée, utiliser un placeholder
+        if not image_rel_path:
+            image_rel_path = f"https://via.placeholder.com/600x400?text={title.replace(' ', '+')}"
+        
+        # Convertir le contenu markdown en HTML
+        html_content = markdown.markdown(content)
+        
+        # Nettoyer le HTML pour un résumé
+        soup = BeautifulSoup(html_content, 'html.parser')
+        clean_text = soup.get_text(separator=' ', strip=True)
+        
+        # Limiter le contenu pour l'aperçu
+        summary = clean_text[:250] + "..." if len(clean_text) > 250 else clean_text
+        
+        # Créer une section pour ce projet dans le Markdown
+        newsletter_content += f"""## {title}
+
+{description}
+
+{summary}
+
+"""
+        
+        # Ajouter les tags s'ils existent
+        if tags:
+            tags_str = ', '.join([f"#{tag}" for tag in tags])
+            newsletter_content += f"**Tags**: {tags_str}\n\n"
+        
+        # Ajouter un lien si disponible
+        newsletter_content += f"[En savoir plus]({url or '#'})\n\n"
+        
+        newsletter_content += "---\n\n"
+        
+        # Stocker les informations pour le HTML
+        projects.append({
+            'title': title,
+            'description': description,
+            'content': content,
+            'html_content': html_content,
+            'summary': summary,
+            'tags': tags,
+            'url': url,
+            'image': image_rel_path,
+            'filename': file_info['filename'],
+            'path': file_info['path'],
+            'id': f"project-{os.path.splitext(file_info['filename'])[0]}"  # ID unique pour l'ancre
+        })
+    
+    # Ajouter une signature
+    newsletter_content += """
+## Restons connectés !
+
+N'hésitez pas à me contacter pour discuter de projets ou simplement échanger sur nos domaines d'intérêt communs.
+
+- [Portfolio](https://portfolio-af-v2.netlify.app/)
+- [LinkedIn](https://www.linkedin.com/in/alexiafontaine)
+"""
+    
+    return newsletter_content, projects
+
+def save_newsletter(content, output_directory, file_date):
+    """
+    Sauvegarde la newsletter dans un fichier avec un nom horodaté.
+    """
+    try:
+        # Créer le répertoire de sortie s'il n'existe pas
+        Path(output_directory).mkdir(parents=True, exist_ok=True)
+        
+        # Générer un nom de fichier avec la date au format YYYYMMDD
+        filename = f"newsletter_{file_date}.md"
+        
+        file_path = os.path.join(output_directory, filename)
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        logger.info(f"Newsletter sauvegardée: {file_path}")
+        return file_path
+    except Exception as e:
+        logger.error(f"Erreur lors de la sauvegarde de la newsletter: {e}")
+        return None
+
+def find_image_for_project(project_name, content, portfolio_directory):
+    """
+    Recherche une image pour le projet.
+    """
+    # Chercher dans le dossier img du portfolio
+    img_dir = os.path.join(portfolio_directory, "img")
+    
+    if os.path.exists(img_dir):
+        # Normaliser le nom du projet
+        normalized_name = project_name.lower().replace(' ', '-').replace('_', '-')
+        
+        # Extensions d'image courantes
+        image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp']
+        
+        # Rechercher par nom exact ou partiel
+        for filename in os.listdir(img_dir):
+            if any(filename.lower().endswith(ext) for ext in image_extensions):
+                name_part = os.path.splitext(filename.lower())[0]
+                if normalized_name in name_part or name_part in normalized_name:
+                    return os.path.join(img_dir, filename)
+        
+        # Si aucune correspondance, prendre la première image
+        for filename in os.listdir(img_dir):
+            if any(filename.lower().endswith(ext) for ext in image_extensions):
+                return os.path.join(img_dir, filename)
+    
+    return None
+
+
 def main():
     """
     Fonction principale du générateur de newsletter.
