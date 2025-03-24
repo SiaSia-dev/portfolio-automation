@@ -16,19 +16,30 @@ logging.basicConfig(
 logger = logging.getLogger('github_pages_publisher')
 
 class GithubPagesPublisher:
-    def __init__(self, repository_url=None, branch="gh-pages"):
-        """
-        Initialise le publisher pour GitHub Pages.
-        """
-        # Utiliser explicitement l'URL du dépôt newsletter-portfolio
-        self.repository_url = repository_url or "https://github.com/SiaSia-dev/newsletter-portfolio.git"
-        
-        self.branch = branch
-        # ... reste du code inchangé
+    def __init__(self, repository_url=None, branch="gh-pages", access_token=None):
+    """
+    Initialise le publisher pour GitHub Pages.
+    
+    Args:
+        repository_url (str, optional): URL du dépôt à utiliser
+        branch (str, optional): Branche à utiliser pour GitHub Pages
+        access_token (str, optional): Token d'accès GitHub
+    """
+    # Utiliser explicitement l'URL du dépôt newsletter-portfolio
+    self.repository_url = repository_url or "https://github.com/SiaSia-dev/newsletter-portfolio.git"
+    
+    self.branch = branch
+    
+    # Récupérer le token d'accès
+    self.access_token = access_token or os.environ.get('GITHUB_TOKEN') or os.environ.get('DEPLOY_TOKEN')
+    
+    if not self.access_token:
+        logger.error("Aucun token d'accès GitHub trouvé")
+        raise ValueError("Token d'accès GitHub requis")
 
-            # Générer un nom de dossier temporaire unique pour éviter les conflits
-            random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-            self.temp_dir = Path(f"./gh_pages_temp_{random_suffix}")
+    # Générer un nom de dossier temporaire unique pour éviter les conflits
+    random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    self.temp_dir = Path(f"./gh_pages_temp_{random_suffix}")
         
     def _run_command(self, command, cwd=None, ignore_errors=False):
         """Exécute une commande shell et retourne le résultat."""
@@ -53,57 +64,64 @@ class GithubPagesPublisher:
                 raise
             
     def publish_newsletter(self, html_file_path, output_name=None):
-    """
-    Publie un fichier HTML de newsletter sur GitHub Pages.
-    
-    Args:
-        html_file_path (str): Chemin vers le fichier HTML de la newsletter
-        output_name (str, optional): Nom du fichier de sortie (index.html par défaut)
+        """
+        Publie un fichier HTML de newsletter sur GitHub Pages.
         
-    Returns:
-        str: URL publique de la newsletter publiée
-    """
-    # URL publique par défaut
-    public_url = "https://SiaSia-dev.github.io/newsletter-portfolio"
-    
-    try:
-        # Vérifier si le fichier HTML existe
+        Args:
+            html_file_path (str): Chemin vers le fichier HTML de la newsletter
+            output_name (str, optional): Nom du fichier de sortie (index.html par défaut)
+            
+        Returns:
+            str: URL publique de la newsletter publiée
+        """
+        # URL publique par défaut
+        public_url = "https://SiaSia-dev.github.io/newsletter-portfolio"
+        
+        # Vérifier l'existence du fichier
         if not os.path.exists(html_file_path):
             logger.error(f"Le fichier {html_file_path} n'existe pas")
             return public_url
         
-        # Créer un nom de sortie si non spécifié
-        if not output_name:
-            output_name = "index.html"
+        # Nom de sortie par défaut
+        output_name = output_name or "index.html"
         
         # Créer un répertoire temporaire unique
-        temp_dir = Path(f"./gh_pages_temp_{datetime.now().strftime('%Y%m%d%H%M%S')}")
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        temp_dir = Path(f"./gh_pages_temp_{timestamp}")
         temp_dir.mkdir(parents=True, exist_ok=True)
         
         try:
-            # Initialiser un nouveau dépôt Git
-            subprocess.run(["git", "init"], cwd=temp_dir, check=True)
-            
-            # Configurer Git
-            subprocess.run(["git", "config", "user.name", "Newsletter Publisher"], cwd=temp_dir, check=True)
-            subprocess.run(["git", "config", "user.email", "newsletter@example.com"], cwd=temp_dir, check=True)
-            
-            # Ajouter le dépôt distant
-            remote_add_cmd = [
-                "git", "remote", "add", "origin", 
-                "https://github.com/SiaSia-dev/newsletter-portfolio.git"
+            # Configuration des commandes Git
+            git_commands = [
+                # Initialisation du dépôt
+                ["git", "init"],
+                
+                # Configuration de l'identité Git
+                ["git", "config", "user.name", "Newsletter Publisher"],
+                ["git", "config", "user.email", "newsletter@example.com"],
+                
+                # Ajout du dépôt distant avec authentification
+                ["git", "remote", "add", "origin", 
+                f"https://{self.access_token}@github.com/SiaSia-dev/newsletter-portfolio.git"],
+                
+                # Récupération de la branche gh-pages
+                ["git", "fetch", "origin", "gh-pages"],
+                ["git", "checkout", "gh-pages"]
             ]
-            subprocess.run(remote_add_cmd, cwd=temp_dir, check=True)
             
-            # Fetch de la branche gh-pages
-            subprocess.run(["git", "fetch", "origin", "gh-pages"], cwd=temp_dir, check=True)
-            subprocess.run(["git", "checkout", "gh-pages"], cwd=temp_dir, check=True)
+            # Exécution des commandes Git
+            for cmd in git_commands:
+                try:
+                    subprocess.run(cmd, cwd=temp_dir, check=True, capture_output=True, text=True)
+                except subprocess.CalledProcessError as e:
+                    logger.error(f"Erreur Git: {cmd[0]} - {e.stderr}")
+                    raise
             
-            # Copier le fichier HTML
+            # Copie du fichier HTML
             dest_path = temp_dir / output_name
             shutil.copy2(html_file_path, dest_path)
             
-            # Copier les images
+            # Gestion des images
             img_src_dir = os.path.join(os.path.dirname(html_file_path), "img")
             img_dest_dir = temp_dir / "img"
             
@@ -117,35 +135,35 @@ class GithubPagesPublisher:
                     if os.path.isfile(src_file):
                         shutil.copy2(src_file, dest_file)
             
-            # Ajouter les fichiers
-            subprocess.run(["git", "add", "."], cwd=temp_dir, check=True)
+            # Ajout, commit et push
+            additional_commands = [
+                ["git", "add", "."],
+                ["git", "commit", "-m", f"Mise à jour de la newsletter - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"],
+                ["git", "push", "-f", "origin", "gh-pages"]
+            ]
             
-            # Créer un commit
-            commit_message = f"Mise à jour de la newsletter - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            subprocess.run(["git", "commit", "-m", commit_message], cwd=temp_dir, check=True)
-            
-            # Pousser les modifications
-            subprocess.run(["git", "push", "-f", "origin", "gh-pages"], cwd=temp_dir, check=True)
+            for cmd in additional_commands:
+                try:
+                    result = subprocess.run(cmd, cwd=temp_dir, check=True, capture_output=True, text=True)
+                    logger.info(f"Commande réussie: {' '.join(cmd)}")
+                except subprocess.CalledProcessError as e:
+                    logger.error(f"Erreur lors de l'exécution de {' '.join(cmd)}: {e.stderr}")
+                    raise
             
             logger.info(f"Newsletter publiée avec succès sur {public_url}")
-            
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Erreur lors de l'exécution d'une commande Git: {e}")
-        except Exception as e:
-            logger.error(f"Erreur lors de la publication: {e}")
+            return public_url
         
-        return public_url
-        
-    except Exception as e:
-        logger.error(f"Erreur lors de la publication sur GitHub Pages: {e}")
-        return public_url
-    finally:
-        # Nettoyer le dossier temporaire
-        try:
-            if temp_dir.exists():
-                shutil.rmtree(temp_dir)
         except Exception as e:
-            logger.warning(f"Impossible de supprimer le dossier temporaire: {e}")
+            logger.error(f"Erreur lors de la publication : {e}")
+            return public_url
+        
+        finally:
+            # Nettoyage du dossier temporaire
+            try:
+                if temp_dir.exists():
+                    shutil.rmtree(temp_dir)
+            except Exception as e:
+                logger.warning(f"Impossible de supprimer le dossier temporaire: {e}")
 
 def main():
     try:
