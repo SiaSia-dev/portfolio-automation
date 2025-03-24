@@ -36,3 +36,13 @@ jobs:
           # S'assurer que le répertoire newsletters existe
           mkdir -p ${{ github.workspace }}/newsletters
           python scripts/linkedin_publisher.py
+
+      - name: Enregistrer la publication
+        if: success()
+        run: |
+          echo "Publication sur LinkedIn effectuée le $(date)" >> publications_log.txt
+          git config --local user.email "fontaine.alexia8@gmail.com"
+          git config --local user.name "GitHub Action"
+          git add publications_log.txt
+          git commit -m "Enregistrement de la publication LinkedIn du $(date)"
+          git push
