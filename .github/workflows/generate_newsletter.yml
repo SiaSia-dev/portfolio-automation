@@ -88,7 +88,7 @@ jobs:
       run: |
         mkdir -p newsletter-portfolio/newsletters
         mkdir -p newsletter-portfolio/newsletters/img
-        cp -R newsletters/* newsletter-portfolio/newsletters/
+        cp -Rp newsletters/* newsletter-portfolio/newsletters/
         echo "Contenu copié dans newsletter-portfolio/newsletters:"
         ls -la newsletter-portfolio/newsletters/
     
