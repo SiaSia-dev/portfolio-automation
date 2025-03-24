@@ -168,6 +168,57 @@ def main():
         # Récupérer le répertoire des newsletters
         newsletters_dir = os.environ.get('NEWSLETTERS_DIR', './newsletters')
         
+        # Message de débogage
+        logger.info(f"Recherche de fichiers HTML dans le répertoire: {newsletters_dir}")
+        
+        # Vérifier si le répertoire existe
+        if not os.path.exists(newsletters_dir):
+            logger.error(f"Le répertoire {newsletters_dir} n'existe pas")
+            return False
+        
+        # Lister tous les fichiers dans le répertoire
+        all_files = os.listdir(newsletters_dir)
+        logger.info(f"Fichiers trouvés dans le répertoire : {all_files}")
+        
+        # Trouver les fichiers HTML
+        html_files = [f for f in all_files if f.endswith('.html')]
+        
+        if not html_files:
+            logger.error("Aucun fichier HTML de newsletter trouvé")
+            return False
+        
+        # Trier par date de modification
+        latest_html = sorted(
+            html_files, 
+            key=lambda f: os.path.getmtime(os.path.join(newsletters_dir, f)), 
+            reverse=True
+        )[0]
+        
+        # Chemin complet du fichier
+        html_file_path = os.path.join(newsletters_dir, latest_html)
+        logger.info(f"Fichier HTML sélectionné : {html_file_path}")
+        
+        # Publier la newsletter
+        publisher = GithubPagesPublisher()
+        public_url = publisher.publish_newsletter(html_file_path)
+        
+        logger.info(f"URL de la newsletter : {public_url}")
+        return True
+    
+    except Exception as e:
+        logger.error(f"Erreur lors de la publication : {e}")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    exit_code = 0 if success else 1
+    exit(exit_code)    """
+    Fonction principale pour publier la newsletter.
+    """
+    try:
+        # Récupérer le répertoire des newsletters
+        newsletters_dir = os.environ.get('NEWSLETTERS_DIR', './newsletters')
+        
         # Trouver le fichier HTML le plus récent
         html_files = [f for f in os.listdir(newsletters_dir) if f.endswith('.html')]
         
