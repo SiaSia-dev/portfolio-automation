@@ -4,6 +4,7 @@ import logging
 import os
 import hashlib
 import pickle
+import re
 from datetime import datetime
 from pathlib import Path
 import time
@@ -25,7 +26,7 @@ class LinkedInPublisher:
                                           Si non fourni, tentera de le récupérer des variables d'environnement.
         """
         # Récupérer le token d'accès
-        self.access_token = access_token or os.environ.get('DEPLOY_TOKEN')
+        self.access_token = access_token or os.environ.get('LINKEDIN_ACCESS_TOKEN') or os.environ.get('DEPLOY_TOKEN')
         
         # Nettoyer et valider le token
         if self.access_token:
@@ -188,7 +189,8 @@ class LinkedInPublisher:
                 post_url = "https://api.linkedin.com/v2/ugcPosts"
                 
                 # Journalisation de la requête
-                logger.debug(f"Envoi de la requête POST à {post_url}")
+                logger.info(f"Envoi de la requête POST à {post_url}")
+                logger.debug(f"Données de la requête: {json.dumps(post_data)}")
                 
                 # Envoi de la requête
                 response = requests.post(post_url, headers=headers, json=post_data)
@@ -241,49 +243,66 @@ def main():
     """
     try:
         # Récupérer le répertoire des newsletters
-        newsletters_dir = os.environ.get('NEWSLETTERS_DIR', './newsletters')
+        newsletters_dir = os.environ.get('NEWSLETTERS_DIR', './newsletter-portfolio')
         
-        # Recherche du fichier HTML le plus récent
-        html_files = [f for f in os.listdir(newsletters_dir) if f.startswith('newsletter_') and f.endswith('.html')]
+        logger.info(f"Recherche des fichiers de newsletter dans {newsletters_dir}")
         
-        if not html_files:
-            logger.error("Aucun fichier HTML de newsletter trouvé")
+        # Vérifier l'existence du répertoire
+        if not os.path.exists(newsletters_dir):
+            logger.error(f"Le répertoire {newsletters_dir} n'existe pas")
             return False
+            
+        # Lister le contenu du répertoire
+        all_files = os.listdir(newsletters_dir)
+        logger.info(f"Fichiers trouvés: {all_files}")
         
-        # Trier par date de modification (le plus récent en premier)
-        latest_html = sorted(html_files, key=lambda f: os.path.getmtime(os.path.join(newsletters_dir, f)), reverse=True)[0]
+        # Recherche du fichier HTML le plus récent (priorité à latest.html)
+        if 'latest.html' in all_files:
+            latest_html = 'latest.html'
+            logger.info("Utilisation de latest.html pour la publication")
+        else:
+            # Chercher les fichiers newsletter_*.html
+            newsletter_files = [f for f in all_files if f.startswith('newsletter_') and f.endswith('.html')]
+            
+            if not newsletter_files:
+                logger.error("Aucun fichier HTML de newsletter trouvé")
+                return False
+            
+            # Trier par date de modification (le plus récent en premier)
+            latest_html = sorted(
+                newsletter_files, 
+                key=lambda f: os.path.getmtime(os.path.join(newsletters_dir, f)), 
+                reverse=True
+            )[0]
         
         logger.info(f"Dernier fichier de newsletter trouvé: {latest_html}")
         
-        # Vérifier s'il existe un fichier URL pour la dernière newsletter
-        url_file_path = os.path.join(newsletters_dir, "latest_url.txt")
-        public_url = None
-        
-        if os.path.exists(url_file_path):
-            with open(url_file_path, "r") as f:
-                public_url = f.read().strip()
-                logger.info(f"URL publique trouvée: {public_url}")
-        
-        if not public_url:
-            # Utiliser une URL par défaut si pas trouvée
-            username = os.environ.get('GITHUB_USERNAME', 'SiaSia-dev')
-            repo_name = os.environ.get('GITHUB_REPO', 'newsletter-portfolio')
-            public_url = f"https://{username}.github.io/{repo_name}"
-            logger.warning(f"Aucune URL trouvée, utilisation de l'URL par défaut: {public_url}")
+        # URL publique de la newsletter
+        username = os.environ.get('GITHUB_USERNAME', 'SiaSia-dev')
+        repo_name = os.environ.get('GITHUB_REPO', 'newsletter-portfolio')
+        public_url = f"https://{username}.github.io/{repo_name}/{latest_html}"
+        logger.info(f"URL publique : {public_url}")
         
         # Lire le contenu du fichier HTML
         try:
             from bs4 import BeautifulSoup
             
-            with open(os.path.join(newsletters_dir, latest_html), 'r', encoding='utf-8') as f:
+            html_path = os.path.join(newsletters_dir, latest_html)
+            with open(html_path, 'r', encoding='utf-8') as f:
                 html_content = f.read()
             
             soup = BeautifulSoup(html_content, 'html.parser')
             
             # Extraire le titre et la date
             title = soup.find('h1').text.strip() if soup.find('h1') else "Newsletter Portfolio"
-            date = soup.find('p', string=lambda s: '/' in s if s else False)
-            date_text = date.text.strip() if date else datetime.now().strftime("%d/%m/%Y")
+            
+            # Recherche de la date dans le titre ou dans un paragraphe contenant une date
+            date_in_title = re.search(r'\d{1,2}/\d{1,2}/\d{4}', title)
+            if date_in_title:
+                date_text = date_in_title.group(0)
+            else:
+                date = soup.find('p', string=lambda s: s and ('/' in s))
+                date_text = date.text.strip() if date else datetime.now().strftime("%d/%m/%Y")
             
             # Extraire les titres des projets
             project_titles = (
@@ -303,14 +322,14 @@ Découvrez mes derniers projets et réalisations dans cette nouvelle édition de
             for proj_title in project_titles:
                 post_text += f"- {proj_title}\n"
 
-            post_text += """
-Consultez la version complète pour plus de détails sur chaque projet.
+            post_text += f"""
+👉 Consultez la version complète pour plus de détails sur chaque projet.
 
 #portfolio #developpeur #tech #projets #newsletter"""
             
             # Créer l'instance LinkedIn Publisher et publier
             publisher = LinkedInPublisher()
-            result = publisher.publish_text_post(post_text, public_url)
+            result = publisher.publish_text_post(post_text, public_url, force_unique=True)
             
             if result:
                 logger.info("Newsletter publiée avec succès sur LinkedIn")

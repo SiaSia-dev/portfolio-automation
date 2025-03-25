@@ -1,4 +1,5 @@
 name: Génération et Déploiement de Newsletter
+
 on:
   schedule:
     - cron: '0 9 * * 5'  # Tous les vendredis à 9h00
@@ -10,13 +11,21 @@ permissions:
   pages: write
   id-token: write
 
+# Configuration de l'environnement GitHub Pages
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   generate-newsletter:
     runs-on: ubuntu-latest
+    
     steps:
-    - name: Checkout du dépôt portfolio-automation
+    - name: Checkout du dépôt newsletter-portfolio
       uses: actions/checkout@v3
-        
+      with:
+        path: newsletter-portfolio
+    
     - name: Checkout du dépôt PORTFOLIO
       uses: actions/checkout@v3
       with:
@@ -25,14 +34,12 @@ jobs:
         token: ${{ secrets.DEPLOY_TOKEN }}
         ref: main 
     
-    - name: Checkout du dépôt newsletter-portfolio
+    - name: Checkout du dépôt portfolio-automation
       uses: actions/checkout@v3
       with:
-        repository: SiaSia-dev/newsletter-portfolio
-        path: newsletter-portfolio
+        repository: SiaSia-dev/portfolio-automation
+        path: portfolio-automation
         token: ${{ secrets.DEPLOY_TOKEN }}
-        ref: gh-pages
-        persist-credentials: true
     
     - name: Configuration de Python
       uses: actions/setup-python@v4
@@ -44,64 +51,58 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
     
-    # Génération de la newsletter
-    - name: Exécuter le générateur de newsletter
+    - name: Préparer le dossier de build
       run: |
-        echo "Génération de la newsletter..."
-        python scripts/newsletter_generator.py
+        mkdir -p build/newsletters
+        mkdir -p build/img
+    
+    - name: Exécution du générateur de newsletter
+      run: |
+        python portfolio-automation/scripts/newsletter_generator.py
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
-        CONTENT_COUNT: 6
-        REQUIRE_YAML: false
-        OUTPUT_DIR: ${{ github.workspace }}/newsletters
+        OUTPUT_DIR: ${{ github.workspace }}/build/newsletters
         CREATE_INDEX: true
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
     
-    - name: Vérifier les fichiers générés
+    - name: Organiser les fichiers pour GitHub Pages
       run: |
-        echo "Contenu du dossier newsletters :"
-        ls -la newsletters/ || echo "Le dossier newsletters n'existe pas"
-    
-    # Préparation du dossier de destination
-    - name: Préparer le dossier de destination
-      run: |
-        mkdir -p newsletter-portfolio/newsletters
-        echo "Contenu du dossier newsletter-portfolio/newsletters (avant) :"
-        ls -la newsletter-portfolio/newsletters/ || echo "Le dossier est vide"
-    
-    # Copie des fichiers HTML
-    - name: Copier les fichiers HTML
-      run: |
-        echo "Copie des fichiers HTML..."
-        cp -fv newsletters/*.html newsletter-portfolio/newsletters/ || echo "Aucun fichier HTML à copier"
-        echo "Contenu du dossier newsletter-portfolio/newsletters (après copie HTML) :"
-        ls -la newsletter-portfolio/newsletters/
-    
-    # Copie des images
-    - name: Copier les images
-      run: |
-        if [ -d "newsletters/img" ]; then
-          echo "Copie des images..."
-          mkdir -p newsletter-portfolio/newsletters/img
-          cp -rfv newsletters/img/* newsletter-portfolio/newsletters/img/ || echo "Aucune image à copier"
-          echo "Contenu du dossier newsletter-portfolio/newsletters/img :"
-          ls -la newsletter-portfolio/newsletters/img/
-        else
-          echo "Le dossier newsletters/img n'existe pas"
+        # Copier les fichiers HTML
+        cp -v build/newsletters/*.html build/
+        
+        # Créer un index.html à la racine si nécessaire
+        if [ ! -f "build/index.html" ]; then
+          echo '<html><head><meta http-equiv="refresh" content="0;url=latest.html"></head><body><p>Redirection...</p></body></html>' > build/index.html
         fi
+        
+        # Copier les images directement depuis PORTFOLIO
+        cp -rv PORTFOLIO/img/* build/img/ || echo "Pas d'images à copier"
+        
+        # Créer un .nojekyll pour GitHub Pages
+        touch build/.nojekyll
     
-    # Publication sur GitHub Pages
-    - name: Publier sur GitHub Pages
+    - name: Déploiement sur GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        token: ${{ secrets.DEPLOY_TOKEN }}
+        repository-name: SiaSia-dev/newsletter-portfolio
+        branch: gh-pages
+        folder: build
+        clean: true
+    
+    - name: Publication sur LinkedIn si configuré
+      if: ${{ env.LINKEDIN_ACCESS_TOKEN != '' && env.LINKEDIN_PERSON_ID != '' }}
       run: |
-        echo "Publication sur GitHub Pages..."
-        python scripts/github_pages_publisher.py
+        python portfolio-automation/scripts/linkedin_publisher.py
       env:
-        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-        NEWSLETTERS_DIR: ${{ github.workspace }}/newsletter-portfolio/newsletters
+        LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+        LINKEDIN_PERSON_ID: ${{ secrets.LINKEDIN_PERSON_ID }}
+        NEWSLETTERS_DIR: ${{ github.workspace }}/build/newsletters
+        GITHUB_USERNAME: SiaSia-dev
+        GITHUB_REPO: newsletter-portfolio
     
-    # Notification email
-    - name: Envoyer une notification par email
+    - name: Notification par email
       uses: dawidd6/action-send-mail@v3
       with:
         server_address: ${{ secrets.MAIL_SERVER }}
@@ -114,7 +115,7 @@ jobs:
           
           La newsletter de cette semaine a été générée et est prête pour votre validation.
           
-          URL de prévisualisation: https://siasia-dev.github.io/newsletter-portfolio/newsletters/latest.html
+          URL de prévisualisation: https://siasia-dev.github.io/newsletter-portfolio/latest.html
           
           Si le contenu vous convient, vous pouvez déclencher manuellement la publication LinkedIn 
           via l'interface GitHub Actions.

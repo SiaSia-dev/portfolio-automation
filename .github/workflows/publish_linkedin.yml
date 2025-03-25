@@ -1,10 +1,10 @@
 name: Publication sur LinkedIn
 
 on:
-  workflow_run:
-    workflows: ["Génération et Déploiement de Newsletter"]
-    types:
-      - completed
+  #workflow_run:
+  # workflows: ["Génération et Déploiement de Newsletter"]
+  #  types:
+  #    - completed
   workflow_dispatch:  # Permet de lancer manuellement
 
 # Ajout des permissions pour permettre l'écriture dans le dépôt
@@ -21,6 +21,14 @@ jobs:
         with:
           token: ${{ secrets.DEPLOY_TOKEN }}
               
+      - name: Checkout newsletter repository
+        uses: actions/checkout@v3
+        with:
+          repository: SiaSia-dev/newsletter-portfolio
+          path: newsletter-portfolio
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          ref: gh-pages
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -35,12 +43,18 @@ jobs:
         env:
           LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
           LINKEDIN_PERSON_ID: ${{ secrets.LINKEDIN_PERSON_ID }}
-          NEWSLETTERS_DIR: ${{ github.workspace }}/newsletters
+          NEWSLETTERS_DIR: ${{ github.workspace }}/newsletter-portfolio
           GITHUB_USERNAME: SiaSia-dev
           GITHUB_REPO: newsletter-portfolio
         run: |
           # S'assurer que le répertoire newsletters existe
-          mkdir -p ${{ github.workspace }}/newsletters
+          mkdir -p ${{ github.workspace }}/newsletter-portfolio
+          
+          # Vérification du contenu du répertoire
+          echo "Fichiers disponibles pour publication LinkedIn:"
+          ls -la ${{ github.workspace }}/newsletter-portfolio
+          
+          # Exécuter le script de publication LinkedIn
           python scripts/linkedin_publisher.py
 
       - name: Enregistrer la publication
