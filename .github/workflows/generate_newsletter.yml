@@ -56,14 +56,20 @@ jobs:
         mkdir -p build/img
     
     - name: Exécution du générateur de newsletter
-      run: |
-        python portfolio-automation/scripts/newsletter_generator.py
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/build/newsletters
         CREATE_INDEX: true
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
+      run: |
+        cd portfolio-automation
+        PORTFOLIO_DIR=${{ github.workspace }}/PORTFOLIO \
+        OUTPUT_DIR=${{ github.workspace }}/build/newsletters \
+        CREATE_INDEX=true \
+        CREATE_LATEST=true \
+        CREATE_ARCHIVES=true \
+        python scripts/newsletter_generator.py
     
     - name: Préparer les fichiers pour le déploiement
       run: |
