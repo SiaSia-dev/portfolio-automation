@@ -11,13 +11,8 @@ permissions:
   pages: write
   id-token: write
 
-# Configuration de l'environnement GitHub Pages
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 jobs:
-  generate-newsletter:
+  generate-and-deploy-newsletter:
     runs-on: ubuntu-latest
     
     steps:
@@ -25,6 +20,8 @@ jobs:
       uses: actions/checkout@v3
       with:
         path: newsletter-portfolio
+        repository: SiaSia-dev/newsletter-portfolio
+        token: ${{ secrets.DEPLOY_TOKEN }}
     
     - name: Checkout du dépôt PORTFOLIO
       uses: actions/checkout@v3
@@ -51,11 +48,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
     
-    - name: Préparer le dossier de build
-      run: |
-        mkdir -p build/newsletters
-        mkdir -p build/img
-    
     - name: Exécution du générateur de newsletter
       run: |
         python portfolio-automation/scripts/newsletter_generator.py
@@ -66,39 +58,14 @@ jobs:
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
     
-    - name: Organiser les fichiers pour GitHub Pages
-      run: |
-        # Copier les fichiers HTML
-        cp -v build/newsletters/*.html build/
-        
-        # Créer un index.html à la racine si nécessaire
-        if [ ! -f "build/index.html" ]; then
-          echo '<html><head><meta http-equiv="refresh" content="0;url=latest.html"></head><body><p>Redirection...</p></body></html>' > build/index.html
-        fi
-        
-        # Copier les images directement depuis PORTFOLIO
-        cp -rv PORTFOLIO/img/* build/img/ || echo "Pas d'images à copier"
-        
-        # Créer un .nojekyll pour GitHub Pages
-        touch build/.nojekyll
-    
-    - name: Publier la newsletter avec github_pages_publisher.py
-      run: |
-        python portfolio-automation/scripts/github_pages_publisher.py
-      env:
-        NEWSLETTERS_DIR: ${{ github.workspace }}/build/newsletters
-        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-    
-    - name: Publication sur LinkedIn si configuré
-      if: ${{ env.LINKEDIN_ACCESS_TOKEN != '' && env.LINKEDIN_PERSON_ID != '' }}
-      run: |
-        python portfolio-automation/scripts/linkedin_publisher.py
-      env:
-        LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
-        LINKEDIN_PERSON_ID: ${{ secrets.LINKEDIN_PERSON_ID }}
-        NEWSLETTERS_DIR: ${{ github.workspace }}/build/newsletters
-        GITHUB_USERNAME: SiaSia-dev
-        GITHUB_REPO: newsletter-portfolio
+    - name: Déploiement sur GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        token: ${{ secrets.DEPLOY_TOKEN }}
+        repository-name: SiaSia-dev/newsletter-portfolio
+        branch: gh-pages
+        folder: build/newsletters
+        clean: true
     
     - name: Notification par email
       uses: dawidd6/action-send-mail@v3
@@ -114,9 +81,6 @@ jobs:
           La newsletter de cette semaine a été générée et est prête pour votre validation.
           
           URL de prévisualisation: https://siasia-dev.github.io/newsletter-portfolio/latest.html
-          
-          Si le contenu vous convient, vous pouvez déclencher manuellement la publication LinkedIn 
-          via l'interface GitHub Actions.
           
           Bonne journée !
         to: ${{ secrets.NOTIFICATION_EMAIL }}
