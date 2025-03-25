@@ -16,13 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout du dépôt newsletter-portfolio
+    - name: Checkout repository
       uses: actions/checkout@v3
       with:
-        path: newsletter-portfolio
-        repository: SiaSia-dev/newsletter-portfolio
-        token: ${{ secrets.DEPLOY_TOKEN }}
-    
+        path: portfolio-automation
+
     - name: Checkout du dépôt PORTFOLIO
       uses: actions/checkout@v3
       with:
@@ -31,12 +29,13 @@ jobs:
         token: ${{ secrets.DEPLOY_TOKEN }}
         ref: main 
     
-    - name: Checkout du dépôt portfolio-automation
+    - name: Checkout du dépôt newsletter-portfolio
       uses: actions/checkout@v3
       with:
-        repository: SiaSia-dev/portfolio-automation
-        path: portfolio-automation
+        repository: SiaSia-dev/newsletter-portfolio
+        path: newsletter-portfolio
         token: ${{ secrets.DEPLOY_TOKEN }}
+        ref: gh-pages
     
     - name: Configuration de Python
       uses: actions/setup-python@v4
@@ -48,9 +47,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
     
-    - name: Exécution du générateur de newsletter
+    - name: Préparer le dossier de build
       run: |
-        python portfolio-automation/scripts/newsletter_generator.py
+        mkdir -p build/newsletters
+        mkdir -p build/img
+    
+    - name: Exécution du générateur de newsletter
+      working-directory: portfolio-automation
+      run: |
+        python scripts/newsletter_generator.py
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/build/newsletters
@@ -58,13 +63,18 @@ jobs:
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
     
+    - name: Préparer les fichiers pour le déploiement
+      run: |
+        cp -R build/newsletters/* newsletter-portfolio/
+        touch newsletter-portfolio/.nojekyll
+    
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         token: ${{ secrets.DEPLOY_TOKEN }}
-        repository-name: SiaSia-dev/newsletter-portfolio
+        repository: SiaSia-dev/newsletter-portfolio
         branch: gh-pages
-        folder: build/newsletters
+        folder: newsletter-portfolio
         clean: true
     
     - name: Notification par email
