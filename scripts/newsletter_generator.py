@@ -1040,6 +1040,56 @@ def create_index_and_archives(output_directory, file_date, display_date):
         logger.error(f"Erreur lors de la création des fichiers index et archives: {e}")
         return False
 
+
+def debug_log_portfolio_files(portfolio_directory):
+    """
+    Fonction de débogage pour logger les détails des fichiers du portfolio.
+    """
+    docs_directory = os.path.join(portfolio_directory, 'docs')
+    
+    logger.info("=== DÉBOGAGE : CONTENU DU RÉPERTOIRE DOCS ===")
+    logger.info(f"Chemin absolu du répertoire docs: {os.path.abspath(docs_directory)}")
+    
+    try:
+        # Lister tous les fichiers
+        all_files = os.listdir(docs_directory)
+        logger.info(f"Tous les fichiers dans docs: {all_files}")
+        
+        # Détails des fichiers Markdown
+        md_files = [f for f in all_files if f.endswith('.md')]
+        logger.info(f"Fichiers Markdown trouvés: {md_files}")
+        
+        # Informations détaillées sur chaque fichier Markdown
+        for filename in md_files:
+            file_path = os.path.join(docs_directory, filename)
+            file_stats = os.stat(file_path)
+            
+            logger.info(f"Fichier: {filename}")
+            logger.info(f"  Chemin complet: {file_path}")
+            logger.info(f"  Taille: {file_stats.st_size} octets")
+            logger.info(f"  Dernière modification: {datetime.fromtimestamp(file_stats.st_mtime)}")
+    
+    except Exception as e:
+        logger.error(f"Erreur lors du débogage : {e}")
+
+# Ajouter à la fin du script, avant le main()
+def additional_debug():
+    """
+    Fonction pour des logs de débogage supplémentaires.
+    """
+    logger.info("=== DÉBOGAGE : INFORMATIONS SUPPLÉMENTAIRES ===")
+    logger.info(f"Répertoire de travail courant: {os.getcwd()}")
+    logger.info(f"Environnement PORTFOLIO_DIR: {os.environ.get('PORTFOLIO_DIR', 'Non défini')}")
+    logger.info(f"Environnement OUTPUT_DIR: {os.environ.get('OUTPUT_DIR', 'Non défini')}")
+
+def main():
+    # Ajouter ces appels au début de la fonction main()
+    if os.environ.get('PORTFOLIO_DIR'):
+        debug_log_portfolio_files(os.environ.get('PORTFOLIO_DIR'))
+    
+    additional_debug()
+    
+
 def main():
     """
     Fonction principale du générateur de newsletter.
