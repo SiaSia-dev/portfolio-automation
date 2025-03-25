@@ -1,9 +1,9 @@
 name: Génération et Déploiement de Newsletter
 
 on:
+  workflow_dispatch:     # Permet le déclenchement manuel
   schedule:
     - cron: '0 9 * * 5'  # Tous les vendredis à 9h00
-  workflow_dispatch:     # Permet le déclenchement manuel
 
 # Permissions nécessaires pour écrire dans le repo et déployer GitHub Pages
 permissions:
@@ -57,8 +57,7 @@ jobs:
     
     - name: Exécution du générateur de newsletter
       run: |
-        cd portfolio-automation
-        python scripts/newsletter_generator.py
+        python portfolio-automation/scripts/newsletter_generator.py
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/build/newsletters
@@ -70,14 +69,6 @@ jobs:
       run: |
         cp -R build/newsletters/* newsletter-portfolio/
         touch newsletter-portfolio/.nojekyll
-    
-    - name: Git configuration
-      working-directory: newsletter-portfolio
-      run: |
-        git config user.name "GitHub Actions Bot"
-        git config user.email "<>"
-        git add .
-        git commit -m "Deploy newsletter" || echo "No changes to commit"
     
     - name: Déploiement sur GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
