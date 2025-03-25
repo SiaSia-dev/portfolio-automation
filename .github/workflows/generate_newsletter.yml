@@ -82,14 +82,12 @@ jobs:
         # Créer un .nojekyll pour GitHub Pages
         touch build/.nojekyll
     
-    - name: Déploiement sur GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@v4
-      with:
-        token: ${{ secrets.DEPLOY_TOKEN }}
-        repository-name: SiaSia-dev/newsletter-portfolio
-        branch: gh-pages
-        folder: build
-        clean: true
+    - name: Publier la newsletter avec github_pages_publisher.py
+      run: |
+        python portfolio-automation/scripts/github_pages_publisher.py
+      env:
+        NEWSLETTERS_DIR: ${{ github.workspace }}/build/newsletters
+        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
     
     - name: Publication sur LinkedIn si configuré
       if: ${{ env.LINKEDIN_ACCESS_TOKEN != '' && env.LINKEDIN_PERSON_ID != '' }}
