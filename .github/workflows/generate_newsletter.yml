@@ -5,7 +5,6 @@ on:
   schedule:
     - cron: '0 9 * * 5'  # Tous les vendredis à 9h00
 
-# Permissions nécessaires pour écrire dans le repo et déployer GitHub Pages
 permissions:
   contents: write
   pages: write
@@ -16,29 +15,19 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout du dépôt newsletter-portfolio
-      uses: actions/checkout@v3
-      with:
-        repository: SiaSia-dev/newsletter-portfolio
-        path: newsletter-portfolio
-        token: ${{ secrets.DEPLOY_TOKEN }}
-        ref: gh-pages
-        fetch-depth: 0
+    - name: Clone newsletter-portfolio
+      run: |
+        git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/newsletter-portfolio.git
+        cd newsletter-portfolio
+        git checkout gh-pages
     
-    - name: Checkout du dépôt PORTFOLIO
-      uses: actions/checkout@v3
-      with:
-        repository: SiaSia-dev/PORTFOLIO 
-        path: PORTFOLIO
-        token: ${{ secrets.DEPLOY_TOKEN }}
-        ref: main 
+    - name: Clone PORTFOLIO
+      run: |
+        git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/PORTFOLIO.git
     
-    - name: Checkout du dépôt portfolio-automation
-      uses: actions/checkout@v3
-      with:
-        repository: SiaSia-dev/portfolio-automation
-        path: portfolio-automation
-        token: ${{ secrets.DEPLOY_TOKEN }}
+    - name: Clone portfolio-automation
+      run: |
+        git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/portfolio-automation.git
     
     - name: Configuration de Python
       uses: actions/setup-python@v4
@@ -50,40 +39,25 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
     
-    - name: Préparer le dossier de build
+    - name: Générer la newsletter
       run: |
-        mkdir -p build/newsletters
-        mkdir -p build/img
-    
-    - name: Exécution du générateur de newsletter
+        cd portfolio-automation
+        python scripts/newsletter_generator.py
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
-        OUTPUT_DIR: ${{ github.workspace }}/build/newsletters
+        OUTPUT_DIR: ${{ github.workspace }}/newsletter-portfolio
         CREATE_INDEX: true
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
-      run: |
-        cd portfolio-automation
-        PORTFOLIO_DIR=${{ github.workspace }}/PORTFOLIO \
-        OUTPUT_DIR=${{ github.workspace }}/build/newsletters \
-        CREATE_INDEX=true \
-        CREATE_LATEST=true \
-        CREATE_ARCHIVES=true \
-        python scripts/newsletter_generator.py
     
-    - name: Préparer les fichiers pour le déploiement
+    - name: Préparer le déploiement
       run: |
-        cp -R build/newsletters/* newsletter-portfolio/
-        touch newsletter-portfolio/.nojekyll
-    
-    - name: Déploiement sur GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@v4
-      with:
-        token: ${{ secrets.DEPLOY_TOKEN }}
-        repository: SiaSia-dev/newsletter-portfolio
-        branch: gh-pages
-        folder: newsletter-portfolio
-        clean: true
+        cd newsletter-portfolio
+        git config user.name "GitHub Actions Bot"
+        git config user.email "<>"
+        git add .
+        git commit -m "Mise à jour newsletter" || echo "Pas de changements"
+        git push origin gh-pages
     
     - name: Notification par email
       uses: dawidd6/action-send-mail@v3
