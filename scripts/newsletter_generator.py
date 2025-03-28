@@ -17,37 +17,64 @@ logging.basicConfig(
 )
 logger = logging.getLogger('newsletter_generator')
 
-def extract_metadata_and_content(md_file_path):
+def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
     """
-    Extrait les métadonnées et le contenu d'un fichier Markdown.
+    Récupère les fichiers Markdown basés sur leur dernière date de commit dans le dépôt.
     """
     try:
-        with open(md_file_path, 'r', encoding='utf-8') as file:
-            content = file.read()
+        if not os.path.exists(docs_directory):
+            logger.error(f"Le répertoire {docs_directory} n'existe pas")
+            return []
 
-        # Vérifier la présence du format frontmatter YAML
-        if content.startswith('---'):
-            # Trouver les délimiteurs du frontmatter
-            parts = content.split('---', 2)
-            if len(parts) >= 3:
-                # Extraire et parser les métadonnées
-                metadata_yaml = parts[1].strip()
+        now = datetime.now()
+        cutoff_date = now - timedelta(days=days_ago)
+        
+        md_files = []
+        
+        # Changer le répertoire de travail pour utiliser les commandes git
+        original_dir = os.getcwd()
+        os.chdir(os.path.dirname(docs_directory))
+        
+        for filename in os.listdir(docs_directory):
+            if filename.endswith('.md'):
+                file_path = os.path.join(docs_directory, filename)
+                
+                # Récupérer la dernière date de commit pour ce fichier
                 try:
-                    metadata = yaml.safe_load(metadata_yaml)
-                    main_content = parts[2].strip()
-                    return metadata, main_content
-                except yaml.YAMLError as e:
-                    logger.error(f"Erreur lors du parsing YAML dans {md_file_path}: {e}")
-                    return {}, content
-            else:
-                logger.warning(f"Format de frontmatter incorrect dans {md_file_path}")
-                return {}, content
-        else:
-            logger.warning(f"Pas de frontmatter trouvé dans {md_file_path}")
-            return {}, content
+                    commit_date_str = subprocess.check_output([
+                        'git', 'log', '-1', '--format=%ci', 
+                        f'docs/{filename}'
+                    ], universal_newlines=True).strip()
+                    
+                    commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d %H:%M:%S %z')
+                    
+                    # Convertir en datetime sans timezone
+                    commit_date = commit_date.replace(tzinfo=None)
+                    
+                    # Vérifier si le commit est récent
+                    if commit_date >= cutoff_date:
+                        md_files.append({
+                            'path': file_path,
+                            'commit_date': commit_date,
+                            'filename': filename
+                        })
+                
+                except subprocess.CalledProcessError:
+                    # Le fichier n'a peut-être pas d'historique de commit
+                    logger.warning(f"Pas d'historique de commit pour {filename}")
+        
+        # Restaurer le répertoire de travail original
+        os.chdir(original_dir)
+        
+        # Trier par date de commit la plus récente
+        sorted_files = sorted(md_files, key=lambda x: x['commit_date'], reverse=True)
+        
+        # Limiter au nombre maximum spécifié
+        return sorted_files[:max_count]
+    
     except Exception as e:
-        logger.error(f"Erreur lors de la lecture du fichier {md_file_path}: {e}")
-        return {}, ""
+        logger.error(f"Erreur lors de la récupération des fichiers récents: {e}")
+        return []
 
 def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
     """
