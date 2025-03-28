@@ -47,10 +47,14 @@ def extract_metadata_and_content(md_file_path):
         logger.error(f"Erreur lors de la lecture du fichier {md_file_path}: {e}")
         return {}, ""
 
-
-def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=365*10):
+def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30):
     """
     Récupère les fichiers Markdown récemment ajoutés, modifiés ou non encore traités.
+    
+    Améliorations:
+    - Ne sauvegarde que les fichiers réellement sélectionnés dans processed_files.txt
+    - Période de vérification réduite à 30 jours par défaut
+    - Meilleure logique pour déterminer quels fichiers inclure
     """
     try:
         if not os.path.exists(docs_directory):
@@ -59,16 +63,21 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
 
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
-        logger.debug(f"Date limite : {cutoff_date}")
+        logger.info(f"Date limite : {cutoff_date}")
         
         # Charger la liste des fichiers déjà traités s'il existe
         processed_files = set()
         if os.path.exists(processed_files_path):
             with open(processed_files_path, 'r') as f:
                 processed_files = set(f.read().splitlines())
-        logger.debug(f"Fichiers déjà traités : {processed_files}")
+        logger.info(f"Nombre de fichiers déjà traités : {len(processed_files)}")
         
+        # Liste pour stocker les nouveaux fichiers à traiter
         md_files = []
+        
+        # Liste pour suivre les fichiers qui seront sélectionnés pour cette newsletter
+        selected_files_paths = set()
+        
         for filename in os.listdir(docs_directory):
             if filename.endswith('.md'):
                 file_path = os.path.join(docs_directory, filename)
@@ -78,33 +87,53 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
                 
                 # Date de dernière modification
                 mod_time = datetime.fromtimestamp(file_stats.st_mtime)
-                logger.debug(f"Date de modification : {mod_time}")
                 
                 # Date de création (dernière metadata change time)
                 create_time = datetime.fromtimestamp(file_stats.st_ctime)
-                logger.debug(f"Date de création : {create_time}")
                 
-                # Vérifier si le fichier est nouveau, récemment modifié ou pas encore traité 
-                if file_path not in processed_files or mod_time >= cutoff_date or create_time >= cutoff_date:
-                    logger.debug(f"Fichier récent trouvé : {file_path}")
+                # Vérifier si le fichier est:
+                # 1. Jamais traité OU
+                # 2. Récemment modifié OU
+                # 3. Récemment créé
+                is_new = file_path not in processed_files
+                is_recently_modified = mod_time >= cutoff_date
+                is_recently_created = create_time >= cutoff_date
+                
+                if is_new or is_recently_modified or is_recently_created:
+                    logger.info(f"Fichier sélectionné: {filename} - Nouveau: {is_new}, Modifié récemment: {is_recently_modified}, Créé récemment: {is_recently_created}")
+                    
                     md_files.append({
                         'path': file_path,
                         'modified_at': mod_time,
                         'created_at': create_time,
                         'filename': filename
                     })
-                    processed_files.add(file_path)  # Ajouter aux fichiers traités
+                    
+                    # Ajouter ce fichier à la liste des fichiers sélectionnés
+                    selected_files_paths.add(file_path)
                 else:
                     logger.debug(f"Fichier ignoré : {file_path}")
         
-        # Trier par date de création décroissante, puis par date de modification décroissante
-        sorted_files = sorted(md_files, key=lambda x: (x['created_at'], x['modified_at']), reverse=True)
+        # Stratégie de tri modifiée:
+        # 1. Priorité aux fichiers jamais traités
+        # 2. Ensuite par date de création décroissante
+        # 3. Puis par date de modification décroissante
+        sorted_files = sorted(
+            md_files, 
+            key=lambda x: (
+                x['path'] in processed_files,  # False (nouveaux) avant True (déjà traités)
+                -x['created_at'].timestamp(),  # Tri inversé par timestamp (plus récent d'abord)
+                -x['modified_at'].timestamp()
+            )
+        )
         
         # Limiter au nombre maximum spécifié
         recent_files = sorted_files[:max_count]
-        logger.debug(f"Fichiers récents : {recent_files}")
-
-        # Mettre à jour la liste des fichiers traités
+        
+        # Mise à jour de la liste des fichiers traités - SEULEMENT ceux qui ont été sélectionnés
+        processed_files.update(selected_files_paths)
+        
+        # Sauvegarder la liste mise à jour des fichiers traités
         with open(processed_files_path, 'w') as f:
             f.write('\n'.join(processed_files))
         
