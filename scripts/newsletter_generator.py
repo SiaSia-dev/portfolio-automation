@@ -18,7 +18,7 @@ logger = logging.getLogger('newsletter_generator')
 
 def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
     """
-    Récupère les fichiers Markdown basés sur leur dernière date de commit dans le dépôt.
+    Récupère les fichiers Markdown récemment modifiés ou ajoutés.
     """
     try:
         if not os.path.exists(docs_directory):
@@ -28,39 +28,58 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
         
-        md_files = []
-        
         # Changer le répertoire de travail pour utiliser les commandes git
         original_dir = os.getcwd()
-        os.chdir(os.path.dirname(docs_directory))
+        repo_dir = os.path.dirname(docs_directory)
+        os.chdir(repo_dir)
         
-        for filename in os.listdir(docs_directory):
-            if filename.endswith('.md'):
-                file_path = os.path.join(docs_directory, filename)
+        md_files = []
+        
+        # Récupérer tous les fichiers Markdown modifiés récemment
+        try:
+            # Commande git pour obtenir les fichiers récemment modifiés
+            modified_files_output = subprocess.check_output([
+                'git', 'log', 
+                f'--since="{days_ago} days ago"', 
+                '--name-only', 
+                '--pretty=format:', 
+                'docs/'
+            ], universal_newlines=True).strip()
+            
+            # Filtrer les fichiers Markdown uniques
+            modified_md_files = set(
+                f for f in modified_files_output.split('\n') 
+                if f.endswith('.md') and f.startswith('docs/')
+            )
+            
+            # Parcourir les fichiers Markdown modifiés
+            for md_file in modified_md_files:
+                # Chemin complet du fichier
+                full_path = os.path.join(repo_dir, md_file)
                 
-                # Récupérer la dernière date de commit pour ce fichier
-                try:
-                    commit_date_str = subprocess.check_output([
-                        'git', 'log', '-1', '--format=%ci', 
-                        f'docs/{filename}'
-                    ], universal_newlines=True).strip()
-                    
-                    commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d %H:%M:%S %z')
-                    
-                    # Convertir en datetime sans timezone
-                    commit_date = commit_date.replace(tzinfo=None)
-                    
-                    # Vérifier si le commit est récent
-                    if commit_date >= cutoff_date:
+                # Vérifier si le fichier existe encore
+                if os.path.exists(full_path):
+                    # Obtenir la date du dernier commit pour ce fichier
+                    try:
+                        commit_date_str = subprocess.check_output([
+                            'git', 'log', '-1', '--format=%ci', 
+                            md_file
+                        ], universal_newlines=True).strip()
+                        
+                        commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d %H:%M:%S %z')
+                        commit_date = commit_date.replace(tzinfo=None)
+                        
                         md_files.append({
-                            'path': file_path,
+                            'path': full_path,
                             'commit_date': commit_date,
-                            'filename': filename
+                            'filename': os.path.basename(md_file)
                         })
-                
-                except subprocess.CalledProcessError:
-                    # Le fichier n'a peut-être pas d'historique de commit
-                    logger.warning(f"Pas d'historique de commit pour {filename}")
+                    
+                    except Exception as commit_error:
+                        logger.warning(f"Erreur lors de la récupération du commit pour {md_file}: {commit_error}")
+        
+        except subprocess.CalledProcessError as git_error:
+            logger.error(f"Erreur git : {git_error}")
         
         # Restaurer le répertoire de travail original
         os.chdir(original_dir)
@@ -74,6 +93,7 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des fichiers récents: {e}")
         return []
+
 
 def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
     """
