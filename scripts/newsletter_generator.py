@@ -18,104 +18,79 @@ logger = logging.getLogger('newsletter_generator')
 
 def get_recent_md_files(docs_directory, max_count=6, days_ago=30):
     """
-    Récupère les fichiers Markdown basés sur la dernière date de commit.
+    Récupère les fichiers Markdown récemment modifiés selon le dernier commit.
     """
     try:
-        # Imports nécessaires
         import subprocess
-        
-        logger.info("=== Début de get_recent_md_files ===")
-        logger.info(f"Répertoire docs : {docs_directory}")
-        logger.info(f"Répertoire parent : {os.path.dirname(docs_directory)}")
         
         # Changer le répertoire de travail
         original_dir = os.getcwd()
         repo_dir = os.path.dirname(docs_directory)
         os.chdir(repo_dir)
         
-        md_files = []
+        # Commande git pour obtenir les fichiers Markdown modifiés récemment
+        cmd = [
+            'git', 'log', 
+            f'--since="{days_ago} days ago"', 
+            '--name-only', 
+            '--pretty=format:%ci', 
+            'PORTFOLIO/docs/'
+        ]
         
-        try:
-            # Commande git pour obtenir tous les fichiers Markdown modifiés récemment
-            commit_log_cmd = [
-                'git', 'log', 
-                f'--since="{days_ago} days ago"', 
-                '--name-only', 
-                '--pretty=format:%ci', 
-                'PORTFOLIO/docs/'
-            ]
-            
-            logger.info(f"Commande Git : {' '.join(commit_log_cmd)}")
-            
-            # Exécuter la commande git
-            result = subprocess.run(
-                commit_log_cmd, 
-                capture_output=True, 
-                text=True, 
-                cwd=repo_dir
-            )
-            
-            # Afficher la sortie brute pour débogage
-            logger.info("Sortie brute de git log :")
-            logger.info(result.stdout)
-            
-            if result.stderr:
-                logger.error(f"Erreurs git : {result.stderr}")
-            
-            # Traiter la sortie
-            lines = result.stdout.strip().split('\n')
-            
-            # Stocker les fichiers uniques
-            processed_files = set()
-            
-            for i in range(0, len(lines), 2):
-                if i + 1 < len(lines):
-                    commit_date_str = lines[i].strip()
-                    file_path = lines[i+1].strip()
-                    
-                    # Filtrer uniquement les fichiers Markdown
-                    if file_path.endswith('.md') and file_path.startswith('PORTFOLIO/docs/'):
+        # Exécuter la commande git
+        result = subprocess.run(
+            cmd, 
+            capture_output=True, 
+            text=True, 
+            cwd=repo_dir
+        )
+        
+        # Traiter la sortie
+        lines = result.stdout.strip().split('\n')
+        
+        # Stocker les fichiers uniques
+        md_files = {}
+        
+        for i in range(0, len(lines), 2):
+            if i + 1 < len(lines):
+                commit_date_str = lines[i].strip()
+                file_path = lines[i+1].strip()
+                
+                # Filtrer uniquement les fichiers Markdown
+                if file_path.endswith('.md') and file_path.startswith('PORTFOLIO/docs/'):
+                    try:
                         # Convertir la date de commit
-                        try:
-                            commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d %H:%M:%S %z')
-                            commit_date = commit_date.replace(tzinfo=None)
-                            
-                            # Éviter les doublons
-                            if file_path not in processed_files:
-                                processed_files.add(file_path)
-                                
-                                # Chemin complet du fichier
-                                full_path = os.path.join(repo_dir, file_path)
-                                
-                                md_files.append({
-                                    'path': full_path,
-                                    'commit_date': commit_date,
-                                    'filename': os.path.basename(file_path)
-                                })
+                        commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d %H:%M:%S %z')
+                        commit_date = commit_date.replace(tzinfo=None)
                         
-                        except Exception as date_error:
-                            logger.error(f"Erreur de parsing de date pour {file_path}: {date_error}")
-            
-            # Restaurer le répertoire de travail original
-            os.chdir(original_dir)
-            
-            # Trier par date de commit la plus récente
-            sorted_files = sorted(md_files, key=lambda x: x['commit_date'], reverse=True)
-            
-            # Limiter au nombre maximum spécifié
-            final_files = sorted_files[:max_count]
-            
-            logger.info("=== Résumé ===")
-            logger.info(f"Nombre total de fichiers trouvés : {len(sorted_files)}")
-            logger.info("Fichiers retenus :")
-            for f in final_files:
-                logger.info(f"- {f['filename']} (commit le {f['commit_date']})")
-            
-            return final_files
+                        # Utiliser le chemin complet du fichier
+                        full_path = os.path.join(repo_dir, file_path)
+                        
+                        # Garder le commit le plus récent pour chaque fichier
+                        if file_path not in md_files or commit_date > md_files[file_path]['commit_date']:
+                            md_files[file_path] = {
+                                'path': full_path,
+                                'commit_date': commit_date,
+                                'filename': os.path.basename(file_path)
+                            }
+                    
+                    except Exception as date_error:
+                        logger.error(f"Erreur de parsing de date pour {file_path}: {date_error}")
         
-        except subprocess.CalledProcessError as git_error:
-            logger.error(f"Erreur d'exécution git : {git_error}")
-            return []
+        # Restaurer le répertoire de travail original
+        os.chdir(original_dir)
+        
+        # Convertir en liste et trier par date de commit
+        sorted_files = sorted(md_files.values(), key=lambda x: x['commit_date'], reverse=True)
+        
+        # Limiter au nombre maximum spécifié
+        final_files = sorted_files[:max_count]
+        
+        logger.info("Fichiers Markdown récupérés :")
+        for f in final_files:
+            logger.info(f"- {f['filename']} (commit le {f['commit_date']})")
+        
+        return final_files
     
     except Exception as e:
         logger.error(f"Erreur critique : {e}")
