@@ -7,8 +7,7 @@ from pathlib import Path
 import logging
 import shutil
 from bs4 import BeautifulSoup
-import git
-from datetime import datetime, timedelta
+import subprocess
 
 # Configuration du logging
 logging.basicConfig(
