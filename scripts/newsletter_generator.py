@@ -250,6 +250,7 @@ def generate_newsletter_content(md_files, portfolio_directory, output_directory,
     
     newsletter_content = f"""# Newsletter Portfolio - {display_date}
 
+
 Découvrez mes derniers projets et réalisations !
 
 """
@@ -1137,6 +1138,7 @@ def main():
     
     # Récupérer les fichiers Markdown récents
     recent_files = get_recent_md_files(docs_directory, processed_files_path)
+    logger.debug(f"Fichiers récents : {recent_files}")
     
     if recent_files:
         logger.info(f"Nombre de fichiers récents trouvés: {len(recent_files)}")
@@ -1147,9 +1149,15 @@ def main():
     
     # Générer le contenu de la newsletter avec la date d'affichage
     newsletter_content, projects = generate_newsletter_content(recent_files, portfolio_directory, output_directory, display_date)
+    logger.debug(f"Contenu de la newsletter : {newsletter_content}")
     
     # Sauvegarder la newsletter au format Markdown avec la date de fichier
     md_path = save_newsletter(newsletter_content, output_directory, file_date)
+    logger.debug(f"Chemin du fichier Markdown : {md_path}")
+
+    with open(md_path, 'r') as f:
+        saved_content = f.read()
+    logger.debug(f"Contenu sauvegardé : {saved_content}")
 
     if md_path:
         # Générer une version HTML avec tout le contenu intégré dans un seul fichier
