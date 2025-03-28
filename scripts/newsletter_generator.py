@@ -59,12 +59,14 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
 
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
+        logger.debug(f"Date limite : {cutoff_date}")
         
         # Charger la liste des fichiers déjà traités s'il existe
         processed_files = set()
         if os.path.exists(processed_files_path):
             with open(processed_files_path, 'r') as f:
                 processed_files = set(f.read().splitlines())
+        logger.debug(f"Fichiers déjà traités : {processed_files}")
         
         md_files = []
         for filename in os.listdir(docs_directory):
@@ -72,14 +74,19 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
                 file_path = os.path.join(docs_directory, filename)
                 file_stats = os.stat(file_path)
                 
+                logger.debug(f"Traitement du fichier : {file_path}")
+                
                 # Date de dernière modification
                 mod_time = datetime.fromtimestamp(file_stats.st_mtime)
+                logger.debug(f"Date de modification : {mod_time}")
                 
                 # Date de création (dernière metadata change time)
                 create_time = datetime.fromtimestamp(file_stats.st_ctime)
+                logger.debug(f"Date de création : {create_time}")
                 
                 # Vérifier si le fichier est nouveau, récemment modifié ou pas encore traité 
                 if file_path not in processed_files or mod_time >= cutoff_date or create_time >= cutoff_date:
+                    logger.debug(f"Fichier récent trouvé : {file_path}")
                     md_files.append({
                         'path': file_path,
                         'modified_at': mod_time,
@@ -87,12 +94,15 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
                         'filename': filename
                     })
                     processed_files.add(file_path)  # Ajouter aux fichiers traités
+                else:
+                    logger.debug(f"Fichier ignoré : {file_path}")
         
         # Trier par date de création décroissante, puis par date de modification décroissante
         sorted_files = sorted(md_files, key=lambda x: (x['created_at'], x['modified_at']), reverse=True)
         
         # Limiter au nombre maximum spécifié
         recent_files = sorted_files[:max_count]
+        logger.debug(f"Fichiers récents : {recent_files}")
 
         # Mettre à jour la liste des fichiers traités
         with open(processed_files_path, 'w') as f:
@@ -101,7 +111,7 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
         return recent_files
     
     except Exception as e:
-        logger.error(f"Erreur lors de la récupération des fichiers récents: {e}")
+        logger.exception(f"Erreur lors de la récupération des fichiers récents : {e}")
         return []
 
 def extract_image_from_content(content):
