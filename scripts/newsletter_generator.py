@@ -19,6 +19,11 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
     """
     Récupère les fichiers Markdown récemment ajoutés, modifiés ou non encore traités.
     
+    Améliorations:
+    - Détection améliorée des fichiers nouvellement ajoutés
+    - Ne sauvegarde que les fichiers réellement sélectionnés dans processed_files.txt
+    - Période de vérification réduite à 30 jours par défaut
+    - Meilleure logique pour déterminer quels fichiers inclure
     """
     try:
         if not os.path.exists(docs_directory):
@@ -27,125 +32,178 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
 
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
-        logger.info(f"Date limite : {cutoff_date}")
+        logger.info(f"Date limite pour considérer un fichier comme récent: {cutoff_date}")
         
-        # Charger la liste des fichiers déjà traités s'il existe
-        processed_files = set()
+        # Vérifier si le fichier processed_files.txt existe
+        logger.info(f"Recherche du fichier de suivi: {processed_files_path}")
         if os.path.exists(processed_files_path):
-            with open(processed_files_path, 'r') as f:
-                processed_files = set(f.read().splitlines())
-        logger.info(f"Nombre de fichiers déjà traités : {len(processed_files)}")
+            logger.info(f"Fichier de suivi trouvé: {processed_files_path}")
+            try:
+                # Charger la liste des fichiers déjà traités
+                with open(processed_files_path, 'r') as f:
+                    processed_files = set(f.read().splitlines())
+                logger.info(f"Nombre de fichiers déjà traités: {len(processed_files)}")
+            except Exception as e:
+                logger.error(f"Erreur lors de la lecture de {processed_files_path}: {e}")
+                processed_files = set()
+        else:
+            logger.warning(f"Fichier de suivi non trouvé: {processed_files_path}. Initialisation d'une liste vide.")
+            processed_files = set()
         
-        # Liste pour stocker les nouveaux fichiers à traiter
-        md_files = []
-        
-        # Liste pour suivre les fichiers qui seront sélectionnés pour cette newsletter
-        selected_files_paths = set()
-        
-        for filename in os.listdir(docs_directory):
-            if filename.endswith('.md'):
-                file_path = os.path.join(docs_directory, filename)
-                file_stats = os.stat(file_path)
-                
-                logger.debug(f"Traitement du fichier : {file_path}")
-                
-                # Date de dernière modification
-                mod_time = datetime.fromtimestamp(file_stats.st_mtime)
-                
-                # Date de création (dernière metadata change time)
-                create_time = datetime.fromtimestamp(file_stats.st_ctime)
-                
-                # Vérifier si le fichier est:
-                # 1. Jamais traité - C'est le critère principal pour les "récemment ajoutés"
-                # 2. Récemment modifié
-                # 3. Récemment créé/modifié selon les métadonnées
-                is_new = file_path not in processed_files
-                is_recently_modified = mod_time >= cutoff_date
-                is_recently_created = create_time >= cutoff_date
-                
-                # Vérifier si c'est un nouveau fichier en comparant avec le dernier scan
-                # C'est crucial pour détecter les fichiers nouvellement ajoutés
-                if is_new or is_recently_modified or is_recently_created:
-                    logger.info(f"Fichier sélectionné: {filename} - Nouveau: {is_new}, Modifié récemment: {is_recently_modified}, Métadonnées récentes: {is_recently_created}")
-                    
-                    md_files.append({
-                        'path': file_path,
-                        'modified_at': mod_time,
-                        'created_at': create_time,
-                        'filename': filename
-                    })
-                    
-                    # Ajouter ce fichier à la liste des fichiers sélectionnés
-                    selected_files_paths.add(file_path)
-                else:
-                    logger.debug(f"Fichier ignoré : {file_path}")
-        
-        # Ajoutons une vérification directe de système de fichiers pour les fichiers ajoutés récemment
-        # Obtenir la liste de tous les fichiers et leurs dates de dernière modification
+        # Définir le chemin du fichier de scan précédent
         last_scan_path = os.path.join(os.path.dirname(processed_files_path), 'last_scan_files.txt')
-        current_files_with_time = {file_path: mod_time.timestamp() for file_path, mod_time in 
-                                  [(os.path.join(docs_directory, f), datetime.fromtimestamp(os.stat(os.path.join(docs_directory, f)).st_mtime)) 
-                                   for f in os.listdir(docs_directory) if f.endswith('.md')]}
+        logger.info(f"Fichier de dernier scan: {last_scan_path}")
+        
+        # Obtenir la liste actuelle des fichiers et leurs timestamps
+        current_files = {}
+        logger.info(f"Scan du répertoire {docs_directory} pour les fichiers .md")
+        
+        try:
+            for filename in os.listdir(docs_directory):
+                if filename.endswith('.md'):
+                    file_path = os.path.join(docs_directory, filename)
+                    file_stats = os.stat(file_path)
+                    mod_time = datetime.fromtimestamp(file_stats.st_mtime)
+                    current_files[file_path] = mod_time.timestamp()
+            logger.info(f"Nombre de fichiers .md trouvés: {len(current_files)}")
+        except Exception as e:
+            logger.error(f"Erreur lors du scan du répertoire {docs_directory}: {e}")
+            return []
         
         # Charger les fichiers du dernier scan s'ils existent
-        previous_files_with_time = {}
+        previous_files = {}
         if os.path.exists(last_scan_path):
+            logger.info(f"Fichier de dernier scan trouvé: {last_scan_path}")
             try:
                 with open(last_scan_path, 'r') as f:
                     for line in f:
                         if line.strip():
                             parts = line.strip().split('|')
                             if len(parts) == 2:
-                                previous_files_with_time[parts[0]] = float(parts[1])
+                                previous_files[parts[0]] = float(parts[1])
+                logger.info(f"Nombre de fichiers dans le scan précédent: {len(previous_files)}")
             except Exception as e:
                 logger.error(f"Erreur lors de la lecture du fichier last_scan_files.txt: {e}")
+        else:
+            logger.warning(f"Fichier de dernier scan non trouvé: {last_scan_path}")
         
         # Identifier les fichiers nouvellement ajoutés depuis le dernier scan
-        newly_added_files = set(current_files_with_time.keys()) - set(previous_files_with_time.keys())
+        newly_added_files = set(current_files.keys()) - set(previous_files.keys())
+        if newly_added_files:
+            logger.info(f"Fichiers nouvellement ajoutés ({len(newly_added_files)}):")
+            for file_path in newly_added_files:
+                logger.info(f"  - {os.path.basename(file_path)}")
+        else:
+            logger.info("Aucun fichier nouvellement ajouté détecté")
         
-        # Mettre à jour le fichier pour le prochain scan
+        # Enregistrer le scan actuel pour la prochaine exécution
         try:
+            logger.info(f"Écriture du fichier de scan actuel: {last_scan_path}")
             with open(last_scan_path, 'w') as f:
-                for file_path, timestamp in current_files_with_time.items():
+                for file_path, timestamp in current_files.items():
                     f.write(f"{file_path}|{timestamp}\n")
+            logger.info(f"Fichier de scan sauvegardé avec {len(current_files)} entrées")
         except Exception as e:
             logger.error(f"Erreur lors de l'écriture du fichier last_scan_files.txt: {e}")
         
-        # Mettre à jour la marque "newly_added" pour chaque fichier
-        for file_info in md_files:
-            file_info['newly_added'] = file_info['path'] in newly_added_files
-            if file_info['newly_added']:
-                logger.info(f"Fichier VRAIMENT nouvellement ajouté détecté: {file_info['filename']}")
+        # Liste pour stocker les fichiers à traiter
+        md_files = []
         
-        # Stratégie de tri modifiée:
-        # 1. Priorité aux fichiers vraiment nouveaux selon le système de fichiers
+        # Liste pour suivre les fichiers qui seront sélectionnés pour cette newsletter
+        selected_files_paths = set()
+        
+        # Analyser chaque fichier Markdown pour déterminer s'il doit être inclus
+        for filename in os.listdir(docs_directory):
+            if filename.endswith('.md'):
+                file_path = os.path.join(docs_directory, filename)
+                file_stats = os.stat(file_path)
+                
+                # Date de dernière modification
+                mod_time = datetime.fromtimestamp(file_stats.st_mtime)
+                
+                # Date de création/changement de métadonnées
+                create_time = datetime.fromtimestamp(file_stats.st_ctime)
+                
+                # Vérifier différents critères de sélection
+                is_new = file_path not in processed_files
+                is_newly_added = file_path in newly_added_files
+                is_recently_modified = mod_time >= cutoff_date
+                is_recently_created = create_time >= cutoff_date
+                
+                # Logs détaillés pour le débogage
+                logger.debug(f"Analyse de {filename}:")
+                logger.debug(f"  - Chemin: {file_path}")
+                logger.debug(f"  - Date de modification: {mod_time}")
+                logger.debug(f"  - Date de métadonnées: {create_time}")
+                logger.debug(f"  - Jamais traité: {is_new}")
+                logger.debug(f"  - Nouvellement ajouté: {is_newly_added}")
+                logger.debug(f"  - Récemment modifié: {is_recently_modified}")
+                logger.debug(f"  - Métadonnées récentes: {is_recently_created}")
+                
+                # Sélectionner le fichier s'il correspond à un des critères
+                if is_newly_added or is_new or is_recently_modified or is_recently_created:
+                    logger.info(f"Fichier sélectionné: {filename}")
+                    logger.info(f"  - Nouvellement ajouté: {is_newly_added}")
+                    logger.info(f"  - Jamais traité: {is_new}")
+                    logger.info(f"  - Récemment modifié: {is_recently_modified}")
+                    logger.info(f"  - Métadonnées récentes: {is_recently_created}")
+                    
+                    md_files.append({
+                        'path': file_path,
+                        'modified_at': mod_time,
+                        'created_at': create_time,
+                        'filename': filename,
+                        'newly_added': is_newly_added
+                    })
+                    
+                    # Ajouter ce fichier à la liste des fichiers sélectionnés
+                    selected_files_paths.add(file_path)
+                else:
+                    logger.debug(f"Fichier ignoré: {filename}")
+        
+        # Stratégie de tri:
+        # 1. Priorité aux fichiers vraiment nouveaux
         # 2. Puis aux fichiers jamais traités
         # 3. Ensuite par date de création décroissante
-        # 4. Puis par date de modification décroissante
+        # 4. Enfin par date de modification décroissante
         sorted_files = sorted(
             md_files, 
             key=lambda x: (
-                not x.get('newly_added', False),  # Les vrais nouveaux fichiers d'abord
-                x['path'] in processed_files,     # Puis ceux qui n'ont jamais été inclus dans une newsletter
-                -x['created_at'].timestamp(),     # Tri inversé par timestamp (plus récent d'abord)
-                -x['modified_at'].timestamp()
+                not x.get('newly_added', False),  # True avant False
+                x['path'] in processed_files,     # False avant True
+                -x['created_at'].timestamp(),     # Plus grand (plus récent) d'abord
+                -x['modified_at'].timestamp()     # Plus grand (plus récent) d'abord
             )
         )
         
         # Limiter au nombre maximum spécifié
         recent_files = sorted_files[:max_count]
+        logger.info(f"Nombre de fichiers sélectionnés pour la newsletter: {len(recent_files)}")
+        
+        # Si des fichiers ont été sélectionnés, les journaliser
+        if recent_files:
+            logger.info("Fichiers sélectionnés pour la newsletter:")
+            for idx, file in enumerate(recent_files):
+                logger.info(f"  {idx+1}. {file['filename']}")
+                logger.info(f"     - Nouvellement ajouté: {file.get('newly_added', False)}")
+                logger.info(f"     - Date de modification: {file['modified_at']}")
         
         # Mise à jour de la liste des fichiers traités - SEULEMENT ceux qui ont été sélectionnés
         processed_files.update(selected_files_paths)
         
         # Sauvegarder la liste mise à jour des fichiers traités
-        with open(processed_files_path, 'w') as f:
-            f.write('\n'.join(processed_files))
+        try:
+            logger.info(f"Écriture du fichier de suivi: {processed_files_path}")
+            with open(processed_files_path, 'w') as f:
+                f.write('\n'.join(processed_files))
+            logger.info(f"Fichier de suivi sauvegardé avec {len(processed_files)} entrées")
+        except Exception as e:
+            logger.error(f"Erreur lors de l'écriture du fichier processed_files.txt: {e}")
         
         return recent_files
     
     except Exception as e:
-        logger.exception(f"Erreur lors de la récupération des fichiers récents : {e}")
+        logger.exception(f"Erreur lors de la récupération des fichiers récents: {e}")
         return []
 
 def extract_metadata_and_content(md_file_path):
@@ -1277,26 +1335,39 @@ def additional_debug():
     logger.info(f"Environnement OUTPUT_DIR: {os.environ.get('OUTPUT_DIR', 'Non défini')}")
 
 def main():
+    """
+    Fonction principale du générateur de newsletter.
+    """
     # Ajouter ces appels au début de la fonction main()
     if os.environ.get('PORTFOLIO_DIR'):
         debug_log_portfolio_files(os.environ.get('PORTFOLIO_DIR'))
     
     additional_debug()
     
-
-def main():
-    """
-    Fonction principale du générateur de newsletter.
-    """
     # Chemins des répertoires (à ajuster selon votre configuration)
     portfolio_directory = os.environ.get('PORTFOLIO_DIR', '../portfolio')
     docs_directory = os.path.join(portfolio_directory, 'docs')
     output_directory = os.environ.get('OUTPUT_DIR', './newsletters')
-
-    # Définir le chemin complet vers le fichier processed_files.txt
-    processed_files_path = os.path.join(os.path.dirname(__file__), 'processed_files.txt')
     
-    logger.info(f"Recherche de fichiers Markdown récents dans {docs_directory}")
+    # Utiliser TRACKING_DIR s'il est défini, sinon utiliser le répertoire du script
+    if 'TRACKING_DIR' in os.environ and os.environ['TRACKING_DIR']:
+        tracking_directory = os.environ['TRACKING_DIR']
+        logger.info(f"Utilisation du répertoire de suivi spécifié: {tracking_directory}")
+    else:
+        tracking_directory = os.path.dirname(__file__)
+        logger.info(f"Utilisation du répertoire du script comme répertoire de suivi: {tracking_directory}")
+    
+    # Créer le répertoire de suivi s'il n'existe pas
+    os.makedirs(tracking_directory, exist_ok=True)
+    
+    # Définir le chemin complet vers les fichiers de suivi
+    processed_files_path = os.path.join(tracking_directory, 'processed_files.txt')
+    logger.info(f"Chemin du fichier processed_files.txt: {processed_files_path}")
+    
+    # Aide au débogage - journaliser des informations sur l'environnement
+    logger.info(f"Répertoire de travail: {os.getcwd()}")
+    logger.info(f"Répertoire portfolio: {portfolio_directory}")
+    logger.info(f"Répertoire docs: {docs_directory}")
     logger.info(f"Répertoire de sortie: {output_directory}")
     
     # Définir les formats de date
@@ -1309,26 +1380,21 @@ def main():
     
     # Récupérer les fichiers Markdown récents
     recent_files = get_recent_md_files(docs_directory, processed_files_path)
-    logger.debug(f"Fichiers récents : {recent_files}")
     
     if recent_files:
         logger.info(f"Nombre de fichiers récents trouvés: {len(recent_files)}")
         for file in recent_files:
             logger.info(f"  - {file['filename']} (modifié le {file['modified_at']})")
+            if file.get('newly_added', False):
+                logger.info(f"    Ce fichier est nouvellement ajouté!")
     else:
         logger.warning("Aucun fichier récent trouvé")
     
     # Générer le contenu de la newsletter avec la date d'affichage
     newsletter_content, projects = generate_newsletter_content(recent_files, portfolio_directory, output_directory, display_date)
-    logger.debug(f"Contenu de la newsletter : {newsletter_content}")
     
     # Sauvegarder la newsletter au format Markdown avec la date de fichier
     md_path = save_newsletter(newsletter_content, output_directory, file_date)
-    logger.debug(f"Chemin du fichier Markdown : {md_path}")
-
-    with open(md_path, 'r') as f:
-        saved_content = f.read()
-    logger.debug(f"Contenu sauvegardé : {saved_content}")
 
     if md_path:
         # Générer une version HTML avec tout le contenu intégré dans un seul fichier
@@ -1338,12 +1404,14 @@ def main():
             logger.info("Newsletter générée avec succès.")
             logger.info(f"Ouvrez {html_path} dans votre navigateur pour voir le résultat.")
             
-            # Créer les fichiers index.html, latest.html et archives.html
-            create_index_and_archives(output_directory, file_date, display_date)
+            # Créer les fichiers index.html, latest.html et archives.html si demandé
+            if os.environ.get('CREATE_INDEX', 'true').lower() == 'true':
+                create_index_and_archives(output_directory, file_date, display_date)
         else:
             logger.error("Erreur lors de la génération de la version HTML.")
     
     logger.info("Génération de la newsletter terminée")
+
 
 if __name__ == "__main__":
     main()

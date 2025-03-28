@@ -39,6 +39,18 @@ jobs:
         python -m pip install --upgrade pip
         pip install PyYAML markdown beautifulsoup4 requests
     
+    # Ajout: Préparation des répertoires de suivi
+    - name: Préparation des répertoires de suivi
+      run: |
+        mkdir -p ${{ github.workspace }}/tracking
+        # Copier les fichiers de suivi existants s'ils existent
+        if [ -f "${{ github.workspace }}/portfolio-automation/scripts/processed_files.txt" ]; then
+          cp ${{ github.workspace }}/portfolio-automation/scripts/processed_files.txt ${{ github.workspace }}/tracking/
+        fi
+        if [ -f "${{ github.workspace }}/portfolio-automation/scripts/last_scan_files.txt" ]; then
+          cp ${{ github.workspace }}/portfolio-automation/scripts/last_scan_files.txt ${{ github.workspace }}/tracking/
+        fi
+    
     - name: Générer la newsletter
       run: |
         cd portfolio-automation
@@ -46,9 +58,26 @@ jobs:
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/newsletter-portfolio
+        TRACKING_DIR: ${{ github.workspace }}/tracking
         CREATE_INDEX: true
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
+    
+    # Ajout: Sauvegarde des fichiers de suivi
+    - name: Sauvegarde des fichiers de suivi
+      run: |
+        if [ -f "${{ github.workspace }}/tracking/processed_files.txt" ]; then
+          cp ${{ github.workspace }}/tracking/processed_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
+        fi
+        if [ -f "${{ github.workspace }}/tracking/last_scan_files.txt" ]; then
+          cp ${{ github.workspace }}/tracking/last_scan_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
+        fi
+        cd portfolio-automation
+        git config user.name "GitHub Actions Bot"
+        git config user.email "<>"
+        git add scripts/processed_files.txt scripts/last_scan_files.txt || true
+        git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements dans les fichiers de suivi"
+        git push origin main || echo "Pas de push nécessaire"
     
     - name: Préparer le déploiement
       run: |
