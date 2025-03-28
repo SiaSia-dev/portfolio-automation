@@ -47,9 +47,12 @@ def extract_metadata_and_content(md_file_path):
         logger.error(f"Erreur lors de la lecture du fichier {md_file_path}: {e}")
         return {}, ""
 
-def get_recent_md_files(docs_directory, max_count=6, days_ago=365*10):
+# Définir le chemin complet vers le fichier processed_files.txt
+processed_files_path = os.path.join(os.path.dirname(__file__), 'processed_files.txt')
+
+def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=365*10):
     """
-    Récupère les fichiers Markdown récemment modifiés ou ajoutés.
+    Récupère les fichiers Markdown récemment ajoutés, modifiés ou non encore traités.
     """
     try:
         if not os.path.exists(docs_directory):
@@ -59,31 +62,45 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=365*10):
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
         
+        # Charger la liste des fichiers déjà traités s'il existe
+        processed_files = set()
+        if os.path.exists(processed_files_path):
+            with open(processed_files_path, 'r') as f:
+                processed_files = set(f.read().splitlines())
+        
         md_files = []
         for filename in os.listdir(docs_directory):
             if filename.endswith('.md'):
                 file_path = os.path.join(docs_directory, filename)
+                file_stats = os.stat(file_path)
                 
-                # Date de modification du fichier
-                mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
-
-                # Date de création du fichier
-                create_time = datetime.fromtimestamp(os.path.getctime(file_path))
+                # Date de dernière modification
+                mod_time = datetime.fromtimestamp(file_stats.st_mtime)
                 
-                # Vérifier si le fichier a été modifié OU ajouté dans les X derniers jours
-                if mod_time >= cutoff_date:
+                # Date de création (dernière metadata change time)
+                create_time = datetime.fromtimestamp(file_stats.st_ctime)
+                
+                # Vérifier si le fichier est nouveau, récemment modifié ou pas encore traité 
+                if file_path not in processed_files or mod_time >= cutoff_date or create_time >= cutoff_date:
                     md_files.append({
                         'path': file_path,
                         'modified_at': mod_time,
                         'created_at': create_time,
                         'filename': filename
                     })
+                    processed_files.add(file_path)  # Ajouter aux fichiers traités
         
-        # Trier par date de modification décroissante
-        sorted_files = sorted(md_files, (x['modified_at'], x['created_at']), reverse=True)
+        # Trier par date de création décroissante, puis par date de modification décroissante
+        sorted_files = sorted(md_files, key=lambda x: (x['created_at'], x['modified_at']), reverse=True)
         
         # Limiter au nombre maximum spécifié
-        return sorted_files[:max_count]
+        recent_files = sorted_files[:max_count]
+
+        # Mettre à jour la liste des fichiers traités
+        with open(processed_files_path, 'w') as f:
+            f.write('\n'.join(processed_files))
+        
+        return recent_files
     
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des fichiers récents: {e}")
