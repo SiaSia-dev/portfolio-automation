@@ -96,57 +96,6 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=30):
         logger.error(f"Erreur critique : {e}")
         return []
 
-
-def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
-    """
-    Récupère les fichiers Markdown basés sur leur dernière date de commit dans le dépôt.
-    """
-    try:
-        if not os.path.exists(docs_directory):
-            logger.error(f"Le répertoire {docs_directory} n'existe pas")
-            return []
-
-        now = datetime.now()
-        cutoff_date = now - timedelta(days=days_ago)
-        
-        # Initialiser le dépôt Git
-        repo_path = os.path.dirname(docs_directory)
-        repo = git.Repo(repo_path)
-        
-        md_files = []
-        
-        for filename in os.listdir(docs_directory):
-            if filename.endswith('.md'):
-                file_path = os.path.join(docs_directory, filename)
-                
-                # Trouver le dernier commit pour ce fichier
-                try:
-                    commits = list(repo.iter_commits(paths=f'docs/{filename}', max_count=1))
-                    
-                    if commits:
-                        commit_date = commits[0].committed_datetime
-                        
-                        # Vérifier si le commit est récent
-                        if commit_date >= cutoff_date:
-                            md_files.append({
-                                'path': file_path,
-                                'commit_date': commit_date,
-                                'filename': filename
-                            })
-                
-                except Exception as e:
-                    logger.warning(f"Erreur pour le fichier {filename}: {e}")
-        
-        # Trier par date de commit la plus récente
-        sorted_files = sorted(md_files, key=lambda x: x['commit_date'], reverse=True)
-        
-        # Limiter au nombre maximum spécifié
-        return sorted_files[:max_count]
-    
-    except Exception as e:
-        logger.error(f"Erreur lors de la récupération des fichiers récents: {e}")
-        return []
-
 def find_image_for_project(project_name, content, portfolio_directory):
     """
     Recherche une image pour le projet, en cherchant d'abord dans le contenu puis dans le dossier img.
