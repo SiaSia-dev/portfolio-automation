@@ -15,6 +15,139 @@ logging.basicConfig(
 )
 logger = logging.getLogger('newsletter_generator')
 
+def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30):
+    """
+    Récupère les fichiers Markdown récemment ajoutés, modifiés ou non encore traités.
+    
+    """
+    try:
+        if not os.path.exists(docs_directory):
+            logger.error(f"Le répertoire {docs_directory} n'existe pas")
+            return []
+
+        now = datetime.now()
+        cutoff_date = now - timedelta(days=days_ago)
+        logger.info(f"Date limite : {cutoff_date}")
+        
+        # Charger la liste des fichiers déjà traités s'il existe
+        processed_files = set()
+        if os.path.exists(processed_files_path):
+            with open(processed_files_path, 'r') as f:
+                processed_files = set(f.read().splitlines())
+        logger.info(f"Nombre de fichiers déjà traités : {len(processed_files)}")
+        
+        # Liste pour stocker les nouveaux fichiers à traiter
+        md_files = []
+        
+        # Liste pour suivre les fichiers qui seront sélectionnés pour cette newsletter
+        selected_files_paths = set()
+        
+        for filename in os.listdir(docs_directory):
+            if filename.endswith('.md'):
+                file_path = os.path.join(docs_directory, filename)
+                file_stats = os.stat(file_path)
+                
+                logger.debug(f"Traitement du fichier : {file_path}")
+                
+                # Date de dernière modification
+                mod_time = datetime.fromtimestamp(file_stats.st_mtime)
+                
+                # Date de création (dernière metadata change time)
+                create_time = datetime.fromtimestamp(file_stats.st_ctime)
+                
+                # Vérifier si le fichier est:
+                # 1. Jamais traité - C'est le critère principal pour les "récemment ajoutés"
+                # 2. Récemment modifié
+                # 3. Récemment créé/modifié selon les métadonnées
+                is_new = file_path not in processed_files
+                is_recently_modified = mod_time >= cutoff_date
+                is_recently_created = create_time >= cutoff_date
+                
+                # Vérifier si c'est un nouveau fichier en comparant avec le dernier scan
+                # C'est crucial pour détecter les fichiers nouvellement ajoutés
+                if is_new or is_recently_modified or is_recently_created:
+                    logger.info(f"Fichier sélectionné: {filename} - Nouveau: {is_new}, Modifié récemment: {is_recently_modified}, Métadonnées récentes: {is_recently_created}")
+                    
+                    md_files.append({
+                        'path': file_path,
+                        'modified_at': mod_time,
+                        'created_at': create_time,
+                        'filename': filename
+                    })
+                    
+                    # Ajouter ce fichier à la liste des fichiers sélectionnés
+                    selected_files_paths.add(file_path)
+                else:
+                    logger.debug(f"Fichier ignoré : {file_path}")
+        
+        # Ajoutons une vérification directe de système de fichiers pour les fichiers ajoutés récemment
+        # Obtenir la liste de tous les fichiers et leurs dates de dernière modification
+        last_scan_path = os.path.join(os.path.dirname(processed_files_path), 'last_scan_files.txt')
+        current_files_with_time = {file_path: mod_time.timestamp() for file_path, mod_time in 
+                                  [(os.path.join(docs_directory, f), datetime.fromtimestamp(os.stat(os.path.join(docs_directory, f)).st_mtime)) 
+                                   for f in os.listdir(docs_directory) if f.endswith('.md')]}
+        
+        # Charger les fichiers du dernier scan s'ils existent
+        previous_files_with_time = {}
+        if os.path.exists(last_scan_path):
+            try:
+                with open(last_scan_path, 'r') as f:
+                    for line in f:
+                        if line.strip():
+                            parts = line.strip().split('|')
+                            if len(parts) == 2:
+                                previous_files_with_time[parts[0]] = float(parts[1])
+            except Exception as e:
+                logger.error(f"Erreur lors de la lecture du fichier last_scan_files.txt: {e}")
+        
+        # Identifier les fichiers nouvellement ajoutés depuis le dernier scan
+        newly_added_files = set(current_files_with_time.keys()) - set(previous_files_with_time.keys())
+        
+        # Mettre à jour le fichier pour le prochain scan
+        try:
+            with open(last_scan_path, 'w') as f:
+                for file_path, timestamp in current_files_with_time.items():
+                    f.write(f"{file_path}|{timestamp}\n")
+        except Exception as e:
+            logger.error(f"Erreur lors de l'écriture du fichier last_scan_files.txt: {e}")
+        
+        # Mettre à jour la marque "newly_added" pour chaque fichier
+        for file_info in md_files:
+            file_info['newly_added'] = file_info['path'] in newly_added_files
+            if file_info['newly_added']:
+                logger.info(f"Fichier VRAIMENT nouvellement ajouté détecté: {file_info['filename']}")
+        
+        # Stratégie de tri modifiée:
+        # 1. Priorité aux fichiers vraiment nouveaux selon le système de fichiers
+        # 2. Puis aux fichiers jamais traités
+        # 3. Ensuite par date de création décroissante
+        # 4. Puis par date de modification décroissante
+        sorted_files = sorted(
+            md_files, 
+            key=lambda x: (
+                not x.get('newly_added', False),  # Les vrais nouveaux fichiers d'abord
+                x['path'] in processed_files,     # Puis ceux qui n'ont jamais été inclus dans une newsletter
+                -x['created_at'].timestamp(),     # Tri inversé par timestamp (plus récent d'abord)
+                -x['modified_at'].timestamp()
+            )
+        )
+        
+        # Limiter au nombre maximum spécifié
+        recent_files = sorted_files[:max_count]
+        
+        # Mise à jour de la liste des fichiers traités - SEULEMENT ceux qui ont été sélectionnés
+        processed_files.update(selected_files_paths)
+        
+        # Sauvegarder la liste mise à jour des fichiers traités
+        with open(processed_files_path, 'w') as f:
+            f.write('\n'.join(processed_files))
+        
+        return recent_files
+    
+    except Exception as e:
+        logger.exception(f"Erreur lors de la récupération des fichiers récents : {e}")
+        return []
+
 def extract_metadata_and_content(md_file_path):
     """
     Extrait les métadonnées et le contenu d'un fichier Markdown.
@@ -47,7 +180,6 @@ def extract_metadata_and_content(md_file_path):
         logger.error(f"Erreur lors de la lecture du fichier {md_file_path}: {e}")
         return {}, ""
 
-def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30):
     """
     Récupère les fichiers Markdown récemment ajoutés, modifiés ou non encore traités.
     
