@@ -1,3 +1,6 @@
-pyyaml==6.0
-markdown==3.4.3
+PyYAML==6.0.1
+markdown==3.4.4
 beautifulsoup4==4.12.2
+requests==2.31.0
+GitPython==3.1.40  # Pour gérer les opérations Git
+python-dateutil==2.8.2  # Pour manipulation avancée des dates

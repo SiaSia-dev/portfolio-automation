@@ -7,6 +7,8 @@ from pathlib import Path
 import logging
 import shutil
 from bs4 import BeautifulSoup
+import git
+from datetime import datetime, timedelta
 
 # Configuration du logging
 logging.basicConfig(
@@ -49,7 +51,7 @@ def extract_metadata_and_content(md_file_path):
 
 def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
     """
-    Récupère les fichiers Markdown récemment modifiés OU ajoutés.
+    Récupère les fichiers Markdown basés sur leur dernière date de commit dans le dépôt.
     """
     try:
         if not os.path.exists(docs_directory):
@@ -59,51 +61,43 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
         
+        # Initialiser le dépôt Git
+        repo_path = os.path.dirname(docs_directory)
+        repo = git.Repo(repo_path)
+        
         md_files = []
+        
         for filename in os.listdir(docs_directory):
             if filename.endswith('.md'):
                 file_path = os.path.join(docs_directory, filename)
-                mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
-                create_time = datetime.fromtimestamp(os.path.getctime(file_path))
                 
-                # Condition : soit modifié récemment, soit ajouté récemment
-                if mod_time >= cutoff_date or create_time >= cutoff_date:
-                    md_files.append({
-                        'path': file_path,
-                        'modified_at': mod_time,
-                        'created_at': create_time,
-                        'filename': filename
-                    })
+                # Trouver le dernier commit pour ce fichier
+                try:
+                    commits = list(repo.iter_commits(paths=f'docs/{filename}', max_count=1))
+                    
+                    if commits:
+                        commit_date = commits[0].committed_datetime
+                        
+                        # Vérifier si le commit est récent
+                        if commit_date >= cutoff_date:
+                            md_files.append({
+                                'path': file_path,
+                                'commit_date': commit_date,
+                                'filename': filename
+                            })
+                
+                except Exception as e:
+                    logger.warning(f"Erreur pour le fichier {filename}: {e}")
         
-        # Trier par date de modification OU de création la plus récente
-        sorted_files = sorted(
-            md_files, 
-            key=lambda x: max(x['modified_at'], x['created_at']), 
-            reverse=True
-        )
+        # Trier par date de commit la plus récente
+        sorted_files = sorted(md_files, key=lambda x: x['commit_date'], reverse=True)
         
         # Limiter au nombre maximum spécifié
         return sorted_files[:max_count]
+    
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des fichiers récents: {e}")
         return []
-
-def extract_image_from_content(content):
-    """
-    Tente d'extraire une URL d'image du contenu Markdown.
-    """
-    # Chercher les images dans le format markdown ![alt](url)
-    image_matches = re.findall(r'!\[(.*?)\]\((.*?)\)', content)
-    if image_matches:
-        # Prendre la première image trouvée
-        return image_matches[0][1]
-    
-    # Chercher les images en HTML <img src="url">
-    html_image_matches = re.findall(r'<img.*?src=[\'"]([^\'"]*)[\'"]', content)
-    if html_image_matches:
-        return html_image_matches[0]
-    
-    return None
 
 def find_image_for_project(project_name, content, portfolio_directory):
     """
