@@ -66,17 +66,21 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=365*10):
                 
                 # Date de modification du fichier
                 mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+
+                # Date de création du fichier
+                create_time = datetime.fromtimestamp(os.path.getctime(file_path))
                 
                 # Vérifier si le fichier a été modifié OU ajouté dans les X derniers jours
                 if mod_time >= cutoff_date:
                     md_files.append({
                         'path': file_path,
                         'modified_at': mod_time,
+                        'created_at': create_time,
                         'filename': filename
                     })
         
         # Trier par date de modification décroissante
-        sorted_files = sorted(md_files, key=lambda x: x['modified_at'], reverse=True)
+        sorted_files = sorted(md_files, (x['modified_at'], x['created_at']), reverse=True)
         
         # Limiter au nombre maximum spécifié
         return sorted_files[:max_count]
