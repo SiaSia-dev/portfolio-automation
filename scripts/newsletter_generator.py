@@ -7,7 +7,6 @@ from pathlib import Path
 import logging
 import shutil
 from bs4 import BeautifulSoup
-import subprocess
 
 # Configuration du logging
 logging.basicConfig(
@@ -16,14 +15,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger('newsletter_generator')
 
-def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
+def extract_metadata_and_content(md_file_path):
     """
-    Récupère les fichiers Markdown basés sur leur dernière date de commit dans le dépôt.
+    Extrait les métadonnées et le contenu d'un fichier Markdown.
     """
     try:
-        import subprocess
-        from datetime import datetime, timedelta
+        with open(md_file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
 
+        # Vérifier la présence du format frontmatter YAML
+        if content.startswith('---'):
+            # Trouver les délimiteurs du frontmatter
+            parts = content.split('---', 2)
+            if len(parts) >= 3:
+                # Extraire et parser les métadonnées
+                metadata_yaml = parts[1].strip()
+                try:
+                    metadata = yaml.safe_load(metadata_yaml)
+                    main_content = parts[2].strip()
+                    return metadata, main_content
+                except yaml.YAMLError as e:
+                    logger.error(f"Erreur lors du parsing YAML dans {md_file_path}: {e}")
+                    return {}, content
+            else:
+                logger.warning(f"Format de frontmatter incorrect dans {md_file_path}")
+                return {}, content
+        else:
+            logger.warning(f"Pas de frontmatter trouvé dans {md_file_path}")
+            return {}, content
+    except Exception as e:
+        logger.error(f"Erreur lors de la lecture du fichier {md_file_path}: {e}")
+        return {}, ""
+
+def get_recent_md_files(docs_directory, max_count=6, days_ago=365*10):
+    """
+    Récupère les fichiers Markdown récemment modifiés ou ajoutés.
+    """
+    try:
         if not os.path.exists(docs_directory):
             logger.error(f"Le répertoire {docs_directory} n'existe pas")
             return []
@@ -31,48 +59,24 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
         
-        # Chemin du dépôt
-        repo_path = os.path.dirname(docs_directory)
-        
         md_files = []
-        
         for filename in os.listdir(docs_directory):
             if filename.endswith('.md'):
                 file_path = os.path.join(docs_directory, filename)
                 
-                try:
-                    # Commande git pour obtenir la date du dernier commit
-                    cmd = [
-                        'git', 
-                        '-C', repo_path,  # Spécifie le répertoire du dépôt
-                        'log', 
-                        '-1', 
-                        '--format=%ci', 
-                        f'PORTFOLIO/docs/{filename}'
-                    ]
-                    
-                    # Exécuter la commande
-                    commit_date_str = subprocess.check_output(cmd, universal_newlines=True).strip()
-                    
-                    # Convertir la date de commit
-                    commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d %H:%M:%S %z')
-                    commit_date = commit_date.replace(tzinfo=None)
-                    
-                    # Vérifier si le commit est récent
-                    if commit_date >= cutoff_date:
-                        md_files.append({
-                            'path': file_path,
-                            'commit_date': commit_date,
-                            'filename': filename
-                        })
+                # Date de modification du fichier
+                mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
                 
-                except subprocess.CalledProcessError:
-                    logger.warning(f"Pas de commit trouvé pour {filename}")
-                except Exception as e:
-                    logger.warning(f"Erreur pour le fichier {filename}: {e}")
+                # Vérifier si le fichier a été modifié OU ajouté dans les X derniers jours
+                if mod_time >= cutoff_date:
+                    md_files.append({
+                        'path': file_path,
+                        'modified_at': mod_time,
+                        'filename': filename
+                    })
         
-        # Trier par date de commit la plus récente
-        sorted_files = sorted(md_files, key=lambda x: x['commit_date'], reverse=True)
+        # Trier par date de modification décroissante
+        sorted_files = sorted(md_files, key=lambda x: x['modified_at'], reverse=True)
         
         # Limiter au nombre maximum spécifié
         return sorted_files[:max_count]
@@ -80,6 +84,23 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des fichiers récents: {e}")
         return []
+
+def extract_image_from_content(content):
+    """
+    Tente d'extraire une URL d'image du contenu Markdown.
+    """
+    # Chercher les images dans le format markdown ![alt](url)
+    image_matches = re.findall(r'!\[(.*?)\]\((.*?)\)', content)
+    if image_matches:
+        # Prendre la première image trouvée
+        return image_matches[0][1]
+    
+    # Chercher les images en HTML <img src="url">
+    html_image_matches = re.findall(r'<img.*?src=[\'"]([^\'"]*)[\'"]', content)
+    if html_image_matches:
+        return html_image_matches[0]
+    
+    return None
 
 def find_image_for_project(project_name, content, portfolio_directory):
     """
