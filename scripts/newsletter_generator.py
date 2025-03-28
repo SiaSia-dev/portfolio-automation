@@ -49,7 +49,7 @@ def extract_metadata_and_content(md_file_path):
 
 def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
     """
-    Récupère les fichiers Markdown les plus récents du répertoire docs.
+    Récupère les fichiers Markdown récemment modifiés OU ajoutés.
     """
     try:
         if not os.path.exists(docs_directory):
@@ -64,17 +64,23 @@ def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
             if filename.endswith('.md'):
                 file_path = os.path.join(docs_directory, filename)
                 mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+                create_time = datetime.fromtimestamp(os.path.getctime(file_path))
                 
-                # Vérifier si le fichier a été modifié dans les X derniers jours
-                if mod_time >= cutoff_date:
+                # Condition : soit modifié récemment, soit ajouté récemment
+                if mod_time >= cutoff_date or create_time >= cutoff_date:
                     md_files.append({
                         'path': file_path,
                         'modified_at': mod_time,
+                        'created_at': create_time,
                         'filename': filename
                     })
         
-        # Trier par date de modification décroissante
-        sorted_files = sorted(md_files, key=lambda x: x['modified_at'], reverse=True)
+        # Trier par date de modification OU de création la plus récente
+        sorted_files = sorted(
+            md_files, 
+            key=lambda x: max(x['modified_at'], x['created_at']), 
+            reverse=True
+        )
         
         # Limiter au nombre maximum spécifié
         return sorted_files[:max_count]
