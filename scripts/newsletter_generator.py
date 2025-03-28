@@ -16,84 +16,69 @@ logging.basicConfig(
 )
 logger = logging.getLogger('newsletter_generator')
 
-def get_recent_md_files(docs_directory, max_count=6, days_ago=30):
+def get_recent_md_files(docs_directory, max_count=6, days_ago=7):
     """
-    Récupère les fichiers Markdown récemment modifiés selon le dernier commit.
+    Récupère les fichiers Markdown basés sur leur dernière date de commit dans le dépôt.
     """
     try:
         import subprocess
+        from datetime import datetime, timedelta
+
+        if not os.path.exists(docs_directory):
+            logger.error(f"Le répertoire {docs_directory} n'existe pas")
+            return []
+
+        now = datetime.now()
+        cutoff_date = now - timedelta(days=days_ago)
         
-        # Changer le répertoire de travail
-        original_dir = os.getcwd()
-        repo_dir = os.path.dirname(docs_directory)
-        os.chdir(repo_dir)
+        # Chemin du dépôt
+        repo_path = os.path.dirname(docs_directory)
         
-        # Commande git pour obtenir les fichiers Markdown modifiés récemment
-        cmd = [
-            'git', 'log', 
-            f'--since="{days_ago} days ago"', 
-            '--name-only', 
-            '--pretty=format:%ci', 
-            'PORTFOLIO/docs/'
-        ]
+        md_files = []
         
-        # Exécuter la commande git
-        result = subprocess.run(
-            cmd, 
-            capture_output=True, 
-            text=True, 
-            cwd=repo_dir
-        )
-        
-        # Traiter la sortie
-        lines = result.stdout.strip().split('\n')
-        
-        # Stocker les fichiers uniques
-        md_files = {}
-        
-        for i in range(0, len(lines), 2):
-            if i + 1 < len(lines):
-                commit_date_str = lines[i].strip()
-                file_path = lines[i+1].strip()
+        for filename in os.listdir(docs_directory):
+            if filename.endswith('.md'):
+                file_path = os.path.join(docs_directory, filename)
                 
-                # Filtrer uniquement les fichiers Markdown
-                if file_path.endswith('.md') and file_path.startswith('PORTFOLIO/docs/'):
-                    try:
-                        # Convertir la date de commit
-                        commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d %H:%M:%S %z')
-                        commit_date = commit_date.replace(tzinfo=None)
-                        
-                        # Utiliser le chemin complet du fichier
-                        full_path = os.path.join(repo_dir, file_path)
-                        
-                        # Garder le commit le plus récent pour chaque fichier
-                        if file_path not in md_files or commit_date > md_files[file_path]['commit_date']:
-                            md_files[file_path] = {
-                                'path': full_path,
-                                'commit_date': commit_date,
-                                'filename': os.path.basename(file_path)
-                            }
+                try:
+                    # Commande git pour obtenir la date du dernier commit
+                    cmd = [
+                        'git', 
+                        '-C', repo_path,  # Spécifie le répertoire du dépôt
+                        'log', 
+                        '-1', 
+                        '--format=%ci', 
+                        f'PORTFOLIO/docs/{filename}'
+                    ]
                     
-                    except Exception as date_error:
-                        logger.error(f"Erreur de parsing de date pour {file_path}: {date_error}")
+                    # Exécuter la commande
+                    commit_date_str = subprocess.check_output(cmd, universal_newlines=True).strip()
+                    
+                    # Convertir la date de commit
+                    commit_date = datetime.strptime(commit_date_str, '%Y-%m-%d %H:%M:%S %z')
+                    commit_date = commit_date.replace(tzinfo=None)
+                    
+                    # Vérifier si le commit est récent
+                    if commit_date >= cutoff_date:
+                        md_files.append({
+                            'path': file_path,
+                            'commit_date': commit_date,
+                            'filename': filename
+                        })
+                
+                except subprocess.CalledProcessError:
+                    logger.warning(f"Pas de commit trouvé pour {filename}")
+                except Exception as e:
+                    logger.warning(f"Erreur pour le fichier {filename}: {e}")
         
-        # Restaurer le répertoire de travail original
-        os.chdir(original_dir)
-        
-        # Convertir en liste et trier par date de commit
-        sorted_files = sorted(md_files.values(), key=lambda x: x['commit_date'], reverse=True)
+        # Trier par date de commit la plus récente
+        sorted_files = sorted(md_files, key=lambda x: x['commit_date'], reverse=True)
         
         # Limiter au nombre maximum spécifié
-        final_files = sorted_files[:max_count]
-        
-        logger.info("Fichiers Markdown récupérés :")
-        for f in final_files:
-            logger.info(f"- {f['filename']} (commit le {f['commit_date']})")
-        
-        return final_files
+        return sorted_files[:max_count]
     
     except Exception as e:
-        logger.error(f"Erreur critique : {e}")
+        logger.error(f"Erreur lors de la récupération des fichiers récents: {e}")
         return []
 
 def find_image_for_project(project_name, content, portfolio_directory):
