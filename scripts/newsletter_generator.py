@@ -47,8 +47,6 @@ def extract_metadata_and_content(md_file_path):
         logger.error(f"Erreur lors de la lecture du fichier {md_file_path}: {e}")
         return {}, ""
 
-# Définir le chemin complet vers le fichier processed_files.txt
-processed_files_path = os.path.join(os.path.dirname(__file__), 'processed_files.txt')
 
 def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=365*10):
     """
@@ -1122,6 +1120,9 @@ def main():
     portfolio_directory = os.environ.get('PORTFOLIO_DIR', '../portfolio')
     docs_directory = os.path.join(portfolio_directory, 'docs')
     output_directory = os.environ.get('OUTPUT_DIR', './newsletters')
+
+    # Définir le chemin complet vers le fichier processed_files.txt
+    processed_files_path = os.path.join(os.path.dirname(__file__), 'processed_files.txt')
     
     logger.info(f"Recherche de fichiers Markdown récents dans {docs_directory}")
     logger.info(f"Répertoire de sortie: {output_directory}")
