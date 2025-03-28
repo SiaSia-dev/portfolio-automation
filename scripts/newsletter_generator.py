@@ -1136,7 +1136,7 @@ def main():
     header_image_exists = copy_images_to_newsletter(portfolio_directory, output_directory)
     
     # Récupérer les fichiers Markdown récents
-    recent_files = get_recent_md_files(docs_directory)
+    recent_files = get_recent_md_files(docs_directory, processed_files_path)
     
     if recent_files:
         logger.info(f"Nombre de fichiers récents trouvés: {len(recent_files)}")
