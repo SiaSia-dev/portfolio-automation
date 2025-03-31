@@ -117,8 +117,8 @@ jobs:
               cp ${{ github.workspace }}/tracking/last_scan_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
             fi
             cd portfolio-automation
-            git config user.name "GitHub Actions"
-            git config user.email "github-actions@github.com"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config user.name "github-actions[bot]"
             git add scripts/processed_files.txt scripts/last_scan_files.txt || true
             git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements dans les fichiers de suivi"
             git push origin main || echo "Pas de push nécessaire"
@@ -126,8 +126,8 @@ jobs:
     - name: Préparer le déploiement
       run: |
         cd newsletter-portfolio
-        git config user.name "GitHub Actions"
-        git config user.email "github-actions@github.com"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
         git add .
         git commit -m "Mise à jour newsletter" || echo "Pas de changements"
         git push origin gh-pages
