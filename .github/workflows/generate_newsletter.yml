@@ -18,8 +18,8 @@ jobs:
     steps:
     - name: Configure Git
       run: |
-        git config --global user.email "github-actions@github.com"
-        git config --global user.name "GitHub Actions"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
 
     - name: Clone newsletter-portfolio
       run: |
@@ -65,8 +65,8 @@ jobs:
         
         # Configurer Git dans le répertoire newsletter-portfolio
         cd ../newsletter-portfolio
-        git config --local user.email "github-actions@github.com"
-        git config --local user.name "GitHub Actions"
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
         
         # Committer les changements
         git add .
@@ -75,8 +75,8 @@ jobs:
         
         # Sauvegarde des fichiers de suivi
         cd ../portfolio-automation
-        git config --local user.email "github-actions@github.com"
-        git config --local user.name "GitHub Actions"
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
         git add scripts/processed_files.txt scripts/last_scan_files.txt || true
         git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements à committer"
         git push origin main || echo "Pas de changements à pousser"
@@ -94,8 +94,8 @@ jobs:
         cd newsletter-portfolio
         
         # Configure Git localement pour ce dépôt
-        git config --local user.email "github-actions@github.com"
-        git config --local user.name "GitHub Actions"
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
         
         # Vérifie s'il y a des changements à committer
         if git status --porcelain | grep -q "img/"; then
@@ -107,21 +107,21 @@ jobs:
           echo "Aucune modification d'images à pousser"
         fi
         set -e  # Réactive l'arrêt du script en cas d'erreur
-        
-        - name: Sauvegarde des fichiers de suivi
-          run: |
-            if [ -f "${{ github.workspace }}/tracking/processed_files.txt" ]; then
-              cp ${{ github.workspace }}/tracking/processed_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
-            fi
-            if [ -f "${{ github.workspace }}/tracking/last_scan_files.txt" ]; then
-              cp ${{ github.workspace }}/tracking/last_scan_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
-            fi
-            cd portfolio-automation
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git config user.name "github-actions[bot]"
-            git add scripts/processed_files.txt scripts/last_scan_files.txt || true
-            git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements dans les fichiers de suivi"
-            git push origin main || echo "Pas de push nécessaire"
+    
+    - name: Sauvegarde des fichiers de suivi
+      run: |
+        if [ -f "${{ github.workspace }}/tracking/processed_files.txt" ]; then
+          cp ${{ github.workspace }}/tracking/processed_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
+        fi
+        if [ -f "${{ github.workspace }}/tracking/last_scan_files.txt" ]; then
+          cp ${{ github.workspace }}/tracking/last_scan_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
+        fi
+        cd portfolio-automation
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+        git add scripts/processed_files.txt scripts/last_scan_files.txt || true
+        git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements dans les fichiers de suivi"
+        git push origin main || echo "Pas de push nécessaire"
 
     - name: Préparer le déploiement
       run: |
