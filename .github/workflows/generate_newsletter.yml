@@ -11,10 +11,16 @@ permissions:
   id-token: write
 
 jobs:
+
   generate-and-deploy-newsletter:
     runs-on: ubuntu-latest
     
     steps:
+    - name: Configure Git
+      run: |
+        git config --global user.email "github-actions@github.com"
+        git config --global user.name "GitHub Actions"
+
     - name: Clone newsletter-portfolio
       run: |
         git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/newsletter-portfolio.git
