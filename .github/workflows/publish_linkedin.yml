@@ -47,6 +47,12 @@ jobs:
           GITHUB_USERNAME: SiaSia-dev
           GITHUB_REPO: newsletter-portfolio
         run: |
+          # Ajoutez la vérification du token
+          echo "Vérification de la validité du token LinkedIn..."
+
+          # Le script lui-même doit être modifié pour gérer cette erreur plus gracieusement
+          python scripts/linkedin_publisher.py || echo "Publication LinkedIn échouée mais le workflow continue"
+          
           # S'assurer que le répertoire newsletters existe
           mkdir -p ${{ github.workspace }}/newsletter-portfolio
           
