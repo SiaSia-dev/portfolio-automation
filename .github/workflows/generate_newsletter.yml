@@ -72,8 +72,8 @@ jobs:
     - name: Commit et pousse les images mises à jour
       run: |
         cd newsletter-portfolio
-        git config user.name "GitHub Actions"
-        git config user.email "github-actions@github.com"
+        git config --local user.email "github-actions@github.com"
+        git config --local user.name "GitHub Actions"
         git add img/
         git commit -m "Mise à jour des images de la newsletter"
         git push origin gh-pages
