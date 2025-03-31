@@ -62,8 +62,14 @@ jobs:
         CREATE_INDEX: true
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
+
+    - name: Commit et pousse les images mises à jour
+      run: |
+        cd newsletter-portfolio
+        git add img/
+        git commit -m "Mise à jour des images de la newsletter"
+        git push origin gh-pages
     
-    # Ajout: Sauvegarde des fichiers de suivi
     - name: Sauvegarde des fichiers de suivi
       run: |
         if [ -f "${{ github.workspace }}/tracking/processed_files.txt" ]; then
