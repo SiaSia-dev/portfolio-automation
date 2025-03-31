@@ -1,0 +1,17 @@
+# Définit le comportement par défaut pour tous les fichiers
+* text=auto
+
+# Normalise les fins de ligne pour les fichiers texte spécifiques
+*.html text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+
+# Traite les images comme des fichiers binaires
+*.jpg binary
+*.png binary
+*.gif binary

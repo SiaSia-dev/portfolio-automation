@@ -15,22 +15,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger('newsletter_generator')
 
+def has_valid_frontmatter(file_path):
+    """
+    Vérifie si un fichier Markdown a un frontmatter YAML valide.
+    
+    Retourne :
+    - True si un frontmatter valide existe
+    - False sinon
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+            
+        # Vérifier la présence du frontmatter YAML
+        if content.startswith('---'):
+            # Trouver les délimiteurs du frontmatter
+            parts = content.split('---', 2)
+            if len(parts) >= 3:
+                try:
+                    # Essayer de parser le frontmatter
+                    metadata_yaml = parts[1].strip()
+                    yaml.safe_load(metadata_yaml)
+                    return True
+                except yaml.YAMLError:
+                    return False
+        return False
+    except Exception as e:
+        logger.error(f"Erreur lors de la vérification du frontmatter pour {file_path}: {e}")
+        return False
+
 def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30):
     """
     Récupère les fichiers Markdown récemment ajoutés, modifiés ou non encore traités.
     
-    Arguments:
-    - docs_directory: str, chemin vers le répertoire contenant les fichiers Markdown
-    - processed_files_path: str, chemin vers le fichier texte contenant les fichiers déjà traités
-    - max_count: int, nombre maximum de fichiers à sélectionner (par défaut 6)
-    - days_ago: int, nombre de jours dans le passé pour considérer un fichier comme récent (par défaut 30)
-    
-    Retourne une liste de dictionnaires représentant les fichiers sélectionnés, avec les clés:
-    - 'path': str, chemin complet vers le fichier
-    - 'modified_at': datetime, date de dernière modification du fichier
-    - 'created_at': datetime, date de création du fichier
-    - 'filename': str, nom du fichier
-    - 'newly_added': bool, indique si le fichier vient d'être ajouté
+    Ordre de priorité :
+    1. Fichiers jamais traités
+    2. Fichiers créés récemment
+    3. Fichiers modifiés récemment
+    4. Fichiers avec frontmatter
+    5. Tri par date de création décroissante
+    6. Tri par date de modification décroissante
     """
     try:
         if not os.path.exists(docs_directory):
@@ -62,49 +86,78 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
                 # Date de création (dernière metadata change time)
                 create_time = datetime.fromtimestamp(file_stats.st_ctime)
                 
+                # Vérifier les différents critères
                 is_new = file_path not in processed_files
-                is_recently_modified = mod_time >= cutoff_date
                 is_recently_created = create_time >= cutoff_date
+                is_recently_modified = mod_time >= cutoff_date
+                has_frontmatter = has_valid_frontmatter(file_path)
                 
-                if is_new or is_recently_modified or is_recently_created:
-                    # Le fichier est considéré comme récent selon au moins un critère
-                    logger.info(f"Fichier sélectionné: {filename}")
-                    
-                    # Vérifier si le fichier est déjà dans le dictionnaire de sélection
+                # Critères de sélection
+                is_selected = (
+                    is_new or 
+                    is_recently_created or 
+                    is_recently_modified or 
+                    has_frontmatter
+                )
+                
+                if is_selected:
+                    # Ajouter ou mettre à jour l'entrée
                     if file_path not in selected_files:
                         selected_files[file_path] = {
                             'path': file_path,
                             'modified_at': mod_time,
                             'created_at': create_time,
                             'filename': filename,
-                            'newly_added': is_new
+                            'newly_added': is_new,
+                            'recently_created': is_recently_created,
+                            'recently_modified': is_recently_modified,
+                            'has_frontmatter': has_frontmatter
                         }
-                        logger.debug(f"Fichier {filename} ajouté à la sélection")
-                    else:
-                        logger.debug(f"Fichier {filename} déjà sélectionné, doublon ignoré")
-                        
-                else:
-                    logger.debug(f"Fichier ignoré: {filename}")
         
-        # Trier les fichiers sélectionnés selon les critères de tri
-        sorted_files = sorted(selected_files.values(), key=lambda x: (
-            x['newly_added'],             # Fichiers nouvellement ajoutés en premier
-            not x['path'] in processed_files,  # Fichiers jamais traités ensuite
-            x['created_at'],              # Puis par date de création décroissante
-            x['modified_at']              # Enfin par date de modification décroissante
-        ), reverse=True)
+        # Tri selon les priorités spécifiées
+        sorted_files = sorted(
+            selected_files.values(), 
+            key=lambda x: (
+                # 1. Priorité absolue aux fichiers jamais traités
+                not x['path'] in processed_files,
+                
+                # 2. Puis fichiers créés récemment
+                not x['recently_created'],
+                
+                # 3. Puis fichiers modifiés récemment
+                not x['recently_modified'],
+                
+                # 4. Puis fichiers avec frontmatter
+                not x['has_frontmatter'],
+                
+                # 5. Par date de création décroissante
+                -x['created_at'].timestamp(),
+                
+                # 6. Par date de modification décroissante
+                -x['modified_at'].timestamp()
+            ), 
+            reverse=True
+        )
         
-        # Limiter le nombre de fichiers sélectionnés
+        # Limiter le nombre de fichiers
         recent_files = sorted_files[:max_count]
         logger.info(f"Nombre de fichiers sélectionnés: {len(recent_files)}")
         
-        # Mettre à jour la liste des fichiers traités avec les fichiers sélectionnés
+        # Mettre à jour la liste des fichiers traités
         processed_files.update(file['path'] for file in recent_files)
         
         # Sauvegarder la liste des fichiers traités
         with open(processed_files_path, 'w') as f:
             f.write('\n'.join(processed_files))
         logger.info(f"Liste des fichiers traités sauvegardée dans {processed_files_path}")
+        
+        # Log détaillé des fichiers sélectionnés
+        for file in recent_files:
+            logger.info(f"Fichier sélectionné: {file['filename']}")
+            logger.info(f"  - Nouveau: {file['newly_added']}")
+            logger.info(f"  - Créé récemment: {file['recently_created']}")
+            logger.info(f"  - Modifié récemment: {file['recently_modified']}")
+            logger.info(f"  - Avec frontmatter: {file['has_frontmatter']}")
         
         return recent_files
     
@@ -1244,11 +1297,8 @@ def main():
     """
     Fonction principale du générateur de newsletter.
     """
-    # Ajouter ces appels au début de la fonction main()
-    if os.environ.get('PORTFOLIO_DIR'):
-        debug_log_portfolio_files(os.environ.get('PORTFOLIO_DIR'))
-    
-    additional_debug()
+    # Ajouter des logs de débogage pour la sélection des fichiers
+    logger.info("=== DÉBUT DE LA GÉNÉRATION DE LA NEWSLETTER ===")
     
     # Chemins des répertoires (à ajuster selon votre configuration)
     portfolio_directory = os.environ.get('PORTFOLIO_DIR', '../portfolio')
