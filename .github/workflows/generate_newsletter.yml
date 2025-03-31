@@ -57,10 +57,29 @@ jobs:
           cp ${{ github.workspace }}/portfolio-automation/scripts/last_scan_files.txt ${{ github.workspace }}/tracking/
         fi
     
-    - name: Générer la newsletter
+    - name: Générer la newsletter et déployer
       run: |
+        # Générer la newsletter
         cd portfolio-automation
         python scripts/newsletter_generator.py
+        
+        # Configurer Git dans le répertoire newsletter-portfolio
+        cd ../newsletter-portfolio
+        git config --local user.email "github-actions@github.com"
+        git config --local user.name "GitHub Actions"
+        
+        # Committer les changements
+        git add .
+        git commit -m "Mise à jour de la newsletter" || echo "Pas de changements à committer"
+        git push origin gh-pages || echo "Pas de changements à pousser"
+        
+        # Sauvegarde des fichiers de suivi
+        cd ../portfolio-automation
+        git config --local user.email "github-actions@github.com"
+        git config --local user.name "GitHub Actions"
+        git add scripts/processed_files.txt scripts/last_scan_files.txt || true
+        git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements à committer"
+        git push origin main || echo "Pas de changements à pousser"
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
         OUTPUT_DIR: ${{ github.workspace }}/newsletter-portfolio
@@ -71,27 +90,38 @@ jobs:
 
     - name: Commit et pousse les images mises à jour
       run: |
+        set +e  # Désactive l'arrêt du script en cas d'erreur
         cd newsletter-portfolio
+        
+        # Configure Git localement pour ce dépôt
         git config --local user.email "github-actions@github.com"
         git config --local user.name "GitHub Actions"
-        git add img/
-        git commit -m "Mise à jour des images de la newsletter"
-        git push origin gh-pages
-    
-    - name: Sauvegarde des fichiers de suivi
-      run: |
-        if [ -f "${{ github.workspace }}/tracking/processed_files.txt" ]; then
-          cp ${{ github.workspace }}/tracking/processed_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
+        
+        # Vérifie s'il y a des changements à committer
+        if git status --porcelain | grep -q "img/"; then
+          git add img/
+          git commit -m "Mise à jour des images de la newsletter"
+          git push origin gh-pages
+          echo "Images mises à jour et poussées avec succès"
+        else
+          echo "Aucune modification d'images à pousser"
         fi
-        if [ -f "${{ github.workspace }}/tracking/last_scan_files.txt" ]; then
-          cp ${{ github.workspace }}/tracking/last_scan_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
-        fi
-        cd portfolio-automation
-        git config user.name "GitHub Actions"
-        git config user.email "github-actions@github.com"
-        git add scripts/processed_files.txt scripts/last_scan_files.txt || true
-        git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements dans les fichiers de suivi"
-        git push origin main || echo "Pas de push nécessaire"
+        set -e  # Réactive l'arrêt du script en cas d'erreur
+        
+        - name: Sauvegarde des fichiers de suivi
+          run: |
+            if [ -f "${{ github.workspace }}/tracking/processed_files.txt" ]; then
+              cp ${{ github.workspace }}/tracking/processed_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
+            fi
+            if [ -f "${{ github.workspace }}/tracking/last_scan_files.txt" ]; then
+              cp ${{ github.workspace }}/tracking/last_scan_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
+            fi
+            cd portfolio-automation
+            git config user.name "GitHub Actions"
+            git config user.email "github-actions@github.com"
+            git add scripts/processed_files.txt scripts/last_scan_files.txt || true
+            git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements dans les fichiers de suivi"
+            git push origin main || echo "Pas de push nécessaire"
 
     - name: Préparer le déploiement
       run: |
