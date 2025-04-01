@@ -11,7 +11,8 @@ from newsletter_template import (
     generate_newsletter_template, 
     generate_archives_template, 
     generate_index_template, 
-    generate_latest_template
+    generate_latest_template,
+    create_index_and_archives
 )
 
 # Configuration du logging

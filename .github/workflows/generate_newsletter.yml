@@ -131,7 +131,15 @@ jobs:
         git add .
         git commit -m "Mise à jour newsletter" || echo "Pas de changements"
         git push origin gh-pages
-    
+
+    - name: Log newsletter files
+      run: |
+        echo "Liste des fichiers newsletter :"
+        ls -l ${{ github.workspace }}/newsletter-portfolio/newsletter_*.html
+        echo "Contenu du répertoire :"
+        ls -la ${{ github.workspace }}/newsletter-portfolio/
+
+
     - name: Notification par email
       uses: dawidd6/action-send-mail@v3
       with:
