@@ -502,175 +502,121 @@ def additional_debug():
     logger.info(f"Répertoire de travail courant: {os.getcwd()}")
     logger.info(f"Environnement PORTFOLIO_DIR: {os.environ.get('PORTFOLIO_DIR', 'Non défini')}")
     logger.info(f"Environnement OUTPUT_DIR: {os.environ.get('OUTPUT_DIR', 'Non défini')}")
+
 def main():
     """
     Fonction principale du générateur de newsletter.
     """
-    # Ajouter des logs de débogage pour la sélection des fichiers
     logger.info("=== DÉBUT DE LA GÉNÉRATION DE LA NEWSLETTER ===")
     
-    # Chemins des répertoires (à ajuster selon votre configuration)
+    # Configuration des chemins
     portfolio_directory = os.environ.get('PORTFOLIO_DIR', '../portfolio')
     docs_directory = os.path.join(portfolio_directory, 'docs')
     output_directory = os.environ.get('OUTPUT_DIR', './newsletters')
+    tracking_directory = os.environ.get('TRACKING_DIR', os.path.dirname(__file__))
     
-    # Utiliser TRACKING_DIR s'il est défini, sinon utiliser le répertoire du script
-    if 'TRACKING_DIR' in os.environ and os.environ['TRACKING_DIR']:
-        tracking_directory = os.environ['TRACKING_DIR']
-        logger.info(f"Utilisation du répertoire de suivi spécifié: {tracking_directory}")
-    else:
-        tracking_directory = os.path.dirname(__file__)
-        logger.info(f"Utilisation du répertoire du script comme répertoire de suivi: {tracking_directory}")
-    
-    # Créer le répertoire de suivi s'il n'existe pas
+    # Préparation des répertoires
     os.makedirs(tracking_directory, exist_ok=True)
-    
-    # Définir le chemin complet vers les fichiers de suivi
     processed_files_path = os.path.join(tracking_directory, 'processed_files.txt')
-    logger.info(f"Chemin du fichier processed_files.txt: {processed_files_path}")
     
-    # Aide au débogage - journaliser des informations sur l'environnement
-    logger.info(f"Répertoire de travail: {os.getcwd()}")
+    # Configuration des dates
+    display_date = datetime.now().strftime("%d/%m/%Y")
+    file_date = datetime.now().strftime("%Y%m%d")
+    
+    # Logs de débogage
     logger.info(f"Répertoire portfolio: {portfolio_directory}")
     logger.info(f"Répertoire docs: {docs_directory}")
     logger.info(f"Répertoire de sortie: {output_directory}")
     
-    # Définir les formats de date
-    display_date = datetime.now().strftime("%d/%m/%Y")  # Format jour/mois/année pour l'affichage (23/03/2025)
-    file_date = datetime.now().strftime("%Y%m%d")       # Format année/mois/jour pour le nom de fichier (20250323)
-    
-    # Copier toutes les images du dossier img du PORTFOLIO vers le dossier img de la newsletter
-    # et vérifier si l'image d'en-tête existe
+    # Copie des images
     header_image_exists = copy_images_to_newsletter(portfolio_directory, output_directory)
     
-    # Récupérer les fichiers Markdown récents
+    # Récupération des fichiers Markdown récents
     recent_files = get_recent_md_files(docs_directory, processed_files_path)
     
-    if recent_files:
-        logger.info(f"Nombre de fichiers récents trouvés: {len(recent_files)}")
-        for file in recent_files:
-            logger.info(f"  - {file['filename']} (modifié le {file['modified_at']})")
-            if file.get('newly_added', False):
-                logger.info(f"    Ce fichier est nouvellement ajouté!")
-    else:
+    if not recent_files:
         logger.warning("Aucun fichier récent trouvé")
+        return False
     
-    # Préparer les projets pour la newsletter
+    # Préparation des projets
     projects = []
     for file_info in recent_files:
-        metadata, content = extract_metadata_and_content(file_info['path'])
-        
-        # Extraire le titre, description, tags et URL du projet
-        title = metadata.get('title', os.path.splitext(file_info['filename'])[0])
-        description = metadata.get('description', '')
-        tags = metadata.get('tags', [])
-        url = metadata.get('url', '')
-        
-        # Trouver une image pour le projet
-        image_path = find_image_for_project(title, content, portfolio_directory)
-        image_filename = os.path.basename(image_path) if image_path else ""
-        
-        # Si une image a été trouvée, la copier dans le dossier img de la newsletter
-        if image_path and os.path.exists(image_path):
-            output_img_dir = os.path.join(output_directory, "img")
-            os.makedirs(output_img_dir, exist_ok=True)
-            output_image_path = os.path.join(output_img_dir, image_filename)
-            try:
+        try:
+            metadata, content = extract_metadata_and_content(file_info['path'])
+            
+            # Extraction des métadonnées
+            title = metadata.get('title', os.path.splitext(file_info['filename'])[0])
+            description = metadata.get('description', '')
+            tags = metadata.get('tags', [])
+            url = metadata.get('url', '')
+            
+            # Recherche et copie de l'image
+            image_path = find_image_for_project(title, content, portfolio_directory)
+            image_filename = os.path.basename(image_path) if image_path else ""
+            
+            if image_path and os.path.exists(image_path):
+                output_img_dir = os.path.join(output_directory, "img")
+                os.makedirs(output_img_dir, exist_ok=True)
+                output_image_path = os.path.join(output_img_dir, image_filename)
                 shutil.copy2(image_path, output_image_path)
-            except Exception as e:
-                logger.error(f"Erreur lors de la copie de l'image {image_path}: {e}")
+            
+            # Chemin de l'image
+            image_rel_path = f"img/{image_filename}" if image_filename else \
+                f"https://via.placeholder.com/600x400?text={title.replace(' ', '+')}"
+            
+            # Ajout du projet
+            projects.append({
+                'title': title,
+                'description': description,
+                'content': content,
+                'tags': tags,
+                'url': url,
+                'image': image_rel_path,
+                'filename': file_info['filename'],
+                'path': file_info['path'],
+                'id': f"project-{os.path.splitext(file_info['filename'])[0]}"
+            })
         
-        image_rel_path = f"img/{image_filename}" if image_filename else ""
-        
-        # Si aucune image n'a été trouvée, utiliser un placeholder
-        if not image_rel_path:
-            image_rel_path = f"https://via.placeholder.com/600x400?text={title.replace(' ', '+')}"
-        
-        # Ajouter les informations du projet
-        projects.append({
-            'title': title,
-            'description': description,
-            'content': content,
-            'tags': tags,
-            'url': url,
-            'image': image_rel_path,
-            'filename': file_info['filename'],
-            'path': file_info['path'],
-            'id': f"project-{os.path.splitext(file_info['filename'])[0]}"
-        })
+        except Exception as e:
+            logger.error(f"Erreur lors du traitement du fichier {file_info['filename']}: {e}")
     
-        # Générer une version HTML avec tout le contenu intégré dans un seul fichier
+    # Génération de la newsletter
+    if not projects:
+        logger.warning("Aucun projet trouvé pour générer la newsletter")
+        return False
+    
+    try:
+        # Génération du contenu HTML
         html_content = generate_newsletter_template(projects, display_date, header_image_exists)
         
-        # Sauvegarder le fichier HTML
+        # Nom et chemin des fichiers
         html_filename = f"newsletter_{file_date}.html"
         html_path = os.path.join(output_directory, html_filename)
         
-        try:
-            with open(html_path, 'w', encoding='utf-8') as f:
-                f.write(html_content)
-            
-            logger.info(f"Newsletter HTML générée : {html_path}")
-            
-            # Créer les fichiers index.html, latest.html et archives.html si demandé
-            if os.environ.get('CREATE_INDEX', 'true').lower() == 'true':
-                create_index_and_archives(output_directory, file_date, display_date)
-        except Exception as e:
-            logger.error(f"Erreur lors de la sauvegarde du fichier HTML: {e}")
-    
-    logger.info("Génération de la newsletter terminée")
-
-def convert_html_to_markdown(html_content):
-    """
-    Convertit un contenu HTML en Markdown.
-    """
-    # Utiliser html2text pour convertir HTML en Markdown
-    import html2text
-    
-    h = html2text.HTML2Text()
-    h.ignore_links = False
-    h.ignore_images = False
-    h.body_width = 0  # Ne pas couper les lignes
-    
-    markdown_text = h.handle(html_content)
-    return markdown_text
-
-# Dans la fonction main(), après la génération du fichier HTML
-# Ajouter le code suivant :
-html_content = generate_newsletter_template(projects, display_date, header_image_exists)
-
-# Convertir le HTML en Markdown
-markdown_content = convert_html_to_markdown(html_content)
-markdown_filename = f"newsletter_{file_date}.md"
-markdown_path = os.path.join(output_directory, markdown_filename)
-
-try:
-    with open(markdown_path, 'w', encoding='utf-8') as f:
-        f.write(markdown_content)
-    
-    logger.info(f"Newsletter Markdown générée : {markdown_path}")
-except Exception as e:
-    logger.error(f"Erreur lors de la sauvegarde du fichier Markdown: {e}")
-
-# Mettre à jour la génération de latest.html
-# Dans la fonction create_index_and_archives
-def create_index_and_archives(output_directory, file_date, display_date):
-    # Modifications existantes...
-    
-    # Copier le dernier fichier HTML dans latest.html
-    if latest_file:
-        latest_newsletter_path = os.path.join(output_directory, latest_file)
-        latest_html_path = os.path.join(output_directory, "latest.html")
+        # Sauvegarde du HTML
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        logger.info(f"Newsletter HTML générée : {html_path}")
         
-        try:
-            shutil.copy2(latest_newsletter_path, latest_html_path)
-            logger.info(f"Fichier latest.html créé à partir de {latest_file}")
-        except Exception as e:
-            logger.error(f"Erreur lors de la création de latest.html: {e}")
-
-    logger.info(f"Newsletter disponible à : https://siasia-dev.github.io/newsletter-portfolio/latest.html")
-
-    return True
+        # Conversion et sauvegarde du Markdown
+        markdown_content = convert_html_to_markdown(html_content)
+        markdown_filename = f"newsletter_{file_date}.md"
+        markdown_path = os.path.join(output_directory, markdown_filename)
+        
+        with open(markdown_path, 'w', encoding='utf-8') as f:
+            f.write(markdown_content)
+        logger.info(f"Newsletter Markdown générée : {markdown_path}")
+        
+        # Création des fichiers d'index
+        if os.environ.get('CREATE_INDEX', 'true').lower() == 'true':
+            create_index_and_archives(output_directory, file_date, display_date)
+        
+        logger.info("Génération de la newsletter terminée avec succès")
+        return True
+    
+    except Exception as e:
+        logger.error(f"Erreur lors de la génération de la newsletter : {e}")
+        return False
 
 if __name__ == "__main__":
     main()
