@@ -51,3 +51,4 @@ dist/
 # scripts
 scripts/newsletter_generator_v1.py
 scripts/newsletter_template_v1.py
+scripts/newsletter_conversion_test.py
