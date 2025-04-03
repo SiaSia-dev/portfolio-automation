@@ -8,7 +8,7 @@
 >>
 >> ## Comment ça marche
 >>
->> Le système génère chaque lundi une newsletter contenant jusqu'à 6 de vos contenus les plus récents (créés ou modifiés au cours des 7 derniers jours).  
+>> Le système génère une newsletter contenant jusqu'à 6 de vos contenus les plus récents (créés ou modifiés au cours des 7 derniers jours).  
 >>
 >> ## Configuration nécessaire
 >>
@@ -28,4 +28,4 @@ portfolio-automation/
 
 ## Utilisation
 
-Les newsletters sont générées automatiquement chaque lundi. Vous pouvez également déclencher manuellement la génération via l'onglet Actions de GitHub.
+Les newsletters sont générées automatiquement chaque vendredi. Vous pouvez également déclencher manuellement la génération via l'onglet Actions de GitHub.
