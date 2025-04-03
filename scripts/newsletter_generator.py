@@ -618,5 +618,19 @@ def main():
         logger.error(f"Erreur lors de la génération de la newsletter : {e}")
         return False
 
+def convert_html_to_markdown(html_content):
+    """
+    Convertit un contenu HTML en Markdown.
+    """
+    import html2text
+    
+    h = html2text.HTML2Text()
+    h.ignore_links = False
+    h.ignore_images = False
+    h.body_width = 0  # Ne pas couper les lignes
+    
+    markdown_text = h.handle(html_content)
+    return markdown_text
+
 if __name__ == "__main__":
     main()
