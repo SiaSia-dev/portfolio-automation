@@ -445,3 +445,74 @@ def generate_archives_template(output_directory):
     logger.info(f"Archives générées avec {len(sorted_files)} newsletters")
     
     return html_content
+
+def create_index_and_archives(output_directory, file_date, display_date):
+    """
+    Crée les fichiers index.html, latest.html et archives.html.
+    Ajoute la génération d'une copie datée de latest.html.
+    """
+    try:
+        # Créer le dossier de sortie s'il n'existe pas
+        Path(output_directory).mkdir(parents=True, exist_ok=True)
+        
+        # Trouver tous les fichiers HTML de newsletter
+        html_files = [f for f in os.listdir(output_directory) if f.startswith('newsletter_') and f.endswith('.html')]
+        
+        # Récupérer le répertoire parent
+        parent_dir = os.path.dirname(output_directory)
+        
+        # Trier les fichiers par date (du plus récent au plus ancien)
+        sorted_files = sorted(html_files, key=lambda f: os.path.getmtime(os.path.join(output_directory, f)), reverse=True)
+        
+        # La dernière newsletter
+        latest_file = sorted_files[0] if sorted_files else None
+        
+        if latest_file:
+            # Générer et sauvegarder index.html à la racine
+            index_content = generate_index_template(latest_file)
+            index_path = os.path.join(parent_dir, "index.html")
+            with open(index_path, 'w', encoding='utf-8') as f:
+                f.write(index_content)
+            logger.info(f"Index.html créé: {index_path}")
+            
+            # Créer le fichier .nojekyll
+            nojekyll_path = os.path.join(parent_dir, ".nojekyll")
+            open(nojekyll_path, 'a').close()
+            logger.info(f"Fichier .nojekyll créé: {nojekyll_path}")
+            
+            # Copier index.html dans le dossier de sortie
+            output_index_path = os.path.join(output_directory, "index.html")
+            with open(output_index_path, 'w', encoding='utf-8') as f:
+                f.write(index_content)
+            
+            # Générer latest.html
+            latest_path = os.path.join(output_directory, "latest.html")
+            latest_content = generate_latest_template(os.path.join(output_directory, latest_file))
+            with open(latest_path, 'w', encoding='utf-8') as f:
+                f.write(latest_content)
+            logger.info(f"Latest.html créé: {latest_path}")
+            
+            # NOUVEAU : Créer une copie datée de latest.html
+            dated_file = f"newsletter_{file_date}.html"
+            dated_path = os.path.join(output_directory, dated_file)
+            
+            # Copier latest.html vers le fichier daté
+            import shutil
+            shutil.copy(latest_path, dated_path)
+            logger.info(f"Création du fichier daté : {dated_path}")
+            
+            # Générer archives.html
+            archives_path = os.path.join(output_directory, "archives.html")
+            archives_content = generate_archives_template(output_directory)
+            with open(archives_path, 'w', encoding='utf-8') as f:
+                f.write(archives_content)
+            logger.info(f"Archives.html créé: {archives_path}")
+            
+            return True
+        else:
+            logger.warning("Aucune newsletter trouvée pour générer les fichiers")
+            return False
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la création des fichiers index et archives: {e}")
+        return False    
