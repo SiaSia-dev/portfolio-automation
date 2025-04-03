@@ -139,6 +139,28 @@ jobs:
         echo "Contenu du répertoire :"
         ls -la ${{ github.workspace }}/newsletter-portfolio/
 
+    - name: Vérification finale et rapport
+      run: |
+        echo "🎉 Newsletter générée avec succès !"
+        echo "URL de la newsletter : https://siasia-dev.github.io/newsletter-portfolio/latest.html"
+        
+        # Vérifier que le fichier latest.html existe
+        if [ -f "${{ github.workspace }}/newsletter-portfolio/latest.html" ]; then
+          echo "✅ Fichier latest.html présent"
+          ls -l "${{ github.workspace }}/newsletter-portfolio/latest.html"
+        else
+          echo "❌ Fichier latest.html manquant"
+          exit 1
+        fi
+
+        # Vérifier le contenu du fichier
+        FILE_SIZE=$(stat -c%s "${{ github.workspace }}/newsletter-portfolio/latest.html")
+        if [ $FILE_SIZE -gt 1000 ]; then
+          echo "✅ Taille du fichier vérifiée : $FILE_SIZE octets"
+        else
+          echo "❌ Fichier trop petit, problème potentiel de génération"
+          exit 1
+        fi
 
     - name: Notification par email
       uses: dawidd6/action-send-mail@v3
