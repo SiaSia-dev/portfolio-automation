@@ -620,6 +620,56 @@ def main():
     
     logger.info("Génération de la newsletter terminée")
 
+def convert_html_to_markdown(html_content):
+    """
+    Convertit un contenu HTML en Markdown.
+    """
+    # Utiliser html2text pour convertir HTML en Markdown
+    import html2text
+    
+    h = html2text.HTML2Text()
+    h.ignore_links = False
+    h.ignore_images = False
+    h.body_width = 0  # Ne pas couper les lignes
+    
+    markdown_text = h.handle(html_content)
+    return markdown_text
+
+# Dans la fonction main(), après la génération du fichier HTML
+# Ajouter le code suivant :
+html_content = generate_newsletter_template(projects, display_date, header_image_exists)
+
+# Convertir le HTML en Markdown
+markdown_content = convert_html_to_markdown(html_content)
+markdown_filename = f"newsletter_{file_date}.md"
+markdown_path = os.path.join(output_directory, markdown_filename)
+
+try:
+    with open(markdown_path, 'w', encoding='utf-8') as f:
+        f.write(markdown_content)
+    
+    logger.info(f"Newsletter Markdown générée : {markdown_path}")
+except Exception as e:
+    logger.error(f"Erreur lors de la sauvegarde du fichier Markdown: {e}")
+
+# Mettre à jour la génération de latest.html
+# Dans la fonction create_index_and_archives
+def create_index_and_archives(output_directory, file_date, display_date):
+    # Modifications existantes...
+    
+    # Copier le dernier fichier HTML dans latest.html
+    if latest_file:
+        latest_newsletter_path = os.path.join(output_directory, latest_file)
+        latest_html_path = os.path.join(output_directory, "latest.html")
+        
+        try:
+            shutil.copy2(latest_newsletter_path, latest_html_path)
+            logger.info(f"Fichier latest.html créé à partir de {latest_file}")
+        except Exception as e:
+            logger.error(f"Erreur lors de la création de latest.html: {e}")
+
+    logger.info(f"Newsletter disponible à : https://siasia-dev.github.io/newsletter-portfolio/latest.html")
+
     return True
 
 if __name__ == "__main__":
