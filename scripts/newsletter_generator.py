@@ -606,6 +606,16 @@ def main():
         with open(markdown_path, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
         logger.info(f"Newsletter Markdown générée : {markdown_path}")
+
+        # Conversion et sauvegarde du Markdown LinkedIn
+        markdown_linkedin_content = convert_html_to_linkedin_markdown(html_content)
+        if markdown_linkedin_content:
+            markdown_linkedin_filename = f"newsletter_{file_date}_linkedin.md"
+            markdown_linkedin_path = os.path.join(output_directory, markdown_linkedin_filename)
+            
+            with open(markdown_linkedin_path, 'w', encoding='utf-8') as f:
+                f.write(markdown_linkedin_content)
+            logger.info(f"Newsletter LinkedIn Markdown générée : {markdown_linkedin_path}")
         
         # Création des fichiers d'index
         if os.environ.get('CREATE_INDEX', 'true').lower() == 'true':
@@ -631,6 +641,76 @@ def convert_html_to_markdown(html_content):
     
     markdown_text = h.handle(html_content)
     return markdown_text
+
+def convert_html_to_linkedin_markdown(html_content):
+    """
+    Convertit le contenu HTML en Markdown optimisé pour LinkedIn
+    """
+    try:
+        from bs4 import BeautifulSoup
+        
+        soup = BeautifulSoup(html_content, 'html.parser')
+        projects = []
+        
+        # Emojis correspondant aux types de projets courants
+        project_emojis = {
+            "data": "📊", "approche": "🎨", "patrimoine": "🏛️", 
+            "avatar": "🤖", "ecriture": "✍️", "fleur": "🌸", 
+            "creation": "🎨", "visualisation": "📊", "analyse": "📈", 
+            "culture": "🎭", "documentation": "📝", "intelligence": "🧠"
+        }
+        
+        # Trouver tous les projets détaillés
+        project_elements = soup.select('.project-full-content')
+        
+        for project_elem in project_elements:
+            # Extraire titre, image, contenu comme dans le script original
+            title = project_elem.h2.text.strip() if project_elem.h2 else ""
+            
+            img_elem = project_elem.select_one('.hero-image')
+            image = img_elem.get('src', '') if img_elem else ''
+            
+            # Extraire le contenu texte
+            content_text = project_elem.get_text(separator='\n', strip=True)
+            content_text = ' '.join(content_text.split())  # Nettoyer les espaces
+            
+            # Déterminer emoji
+            emoji = next((emoji for keyword, emoji in project_emojis.items() 
+                          if keyword.lower() in title.lower()), "📌")
+            
+            projects.append({
+                'title': title,
+                'image': image,
+                'content': content_text,
+                'emoji': emoji
+            })
+        
+        # Générer le markdown
+        markdown = f"# 📰 Newsletter Portfolio - {datetime.now().strftime('%d/%m/%Y')}\n\n"
+        markdown += "## Récits visuels, horizons numériques : Chaque newsletter, un voyage entre données, créativité et découvertes\n\n"
+        markdown += "---\n\n"
+        
+        for project in projects:
+            markdown += f"### {project['emoji']} {project['title']}\n"
+            
+            if project['image']:
+                markdown += f"![{project['title']}]({project['image']})\n\n"
+            
+            markdown += f"{project['content']}\n\n"
+            markdown += "---\n\n"
+        
+        # Section de contact
+        markdown += "## 📱 Restons connectés !\n\n"
+        markdown += "N'hésitez pas à me contacter pour discuter de projets.\n\n"
+        markdown += "🔗 [Portfolio](https://portfolio-af-v2.netlify.app/)  \n"
+        markdown += "🔗 [LinkedIn](https://www.linkedin.com/in/alexiafontaine)\n\n"
+        markdown += f"© {datetime.now().year} - Alexia Fontaine - Tous droits réservés"
+        
+        return markdown
+    
+    except Exception as e:
+        logger.error(f"Erreur lors de la conversion LinkedIn Markdown: {e}")
+        return None
 
 if __name__ == "__main__":
     main()
