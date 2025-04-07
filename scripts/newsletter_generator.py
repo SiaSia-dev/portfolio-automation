@@ -494,6 +494,7 @@ def debug_log_portfolio_files(portfolio_directory):
     
     except Exception as e:
         logger.error(f"Erreur lors du débogage : {e}")
+        
 def additional_debug():
     """
     Fonction pour des logs de débogage supplémentaires.
@@ -598,15 +599,7 @@ def main():
             f.write(html_content)
         logger.info(f"Newsletter HTML générée : {html_path}")
         
-        # Conversion et sauvegarde du Markdown
-        markdown_content = convert_html_to_markdown(html_content)
-        markdown_filename = f"newsletter_{file_date}.md"
-        markdown_path = os.path.join(output_directory, markdown_filename)
         
-        with open(markdown_path, 'w', encoding='utf-8') as f:
-            f.write(markdown_content)
-        logger.info(f"Newsletter Markdown générée : {markdown_path}")
-
         # Conversion et sauvegarde du Markdown LinkedIn
         markdown_linkedin_content = convert_html_to_linkedin_markdown(html_content)
         if markdown_linkedin_content:
@@ -628,10 +621,24 @@ def main():
         logger.error(f"Erreur lors de la génération de la newsletter : {e}")
         return False
 
+def convert_html_to_markdown(html_content):
+    """
+    Convertit un contenu HTML en Markdown.
+    """
+    import html2text
+    
+    h = html2text.HTML2Text()
+    h.ignore_links = False
+    h.ignore_images = False
+    h.body_width = 0  # Ne pas couper les lignes
+    
+    markdown_text = h.handle(html_content)
+    return markdown_text
 
 def convert_html_to_linkedin_markdown(html_content):
     """
     Convertit le contenu HTML en Markdown optimisé pour LinkedIn
+    avec une mise en page structurée et des tirets
     """
     try:
         from bs4 import BeautifulSoup
@@ -651,15 +658,31 @@ def convert_html_to_linkedin_markdown(html_content):
         project_elements = soup.select('.project-full-content')
         
         for project_elem in project_elements:
-            # Extraire titre, image, contenu comme dans le script original
+            # Extraire titre et sous-titres
             title = project_elem.h2.text.strip() if project_elem.h2 else ""
             
+            # Trouver les différentes sections
+            sections = {}
+            current_section = None
+            
+            for elem in project_elem.find_all(['h1', 'h2', 'h3', 'p', 'ul', 'ol']):
+                if elem.name in ['h1', 'h2', 'h3']:
+                    current_section = elem.text.strip()
+                    sections[current_section] = []
+                elif current_section and elem.name in ['p', 'ul', 'ol']:
+                    # Pour les paragraphes et listes
+                    if elem.name == 'p':
+                        sections[current_section].append(('paragraph', elem.text.strip()))
+                    elif elem.name == 'ul':
+                        list_items = [('bullet', li.text.strip()) for li in elem.find_all('li')]
+                        sections[current_section].extend(list_items)
+                    elif elem.name == 'ol':
+                        list_items = [('numbered', li.text.strip()) for li in elem.find_all('li')]
+                        sections[current_section].extend(list_items)
+            
+            # Image du projet
             img_elem = project_elem.select_one('.hero-image')
             image = img_elem.get('src', '') if img_elem else ''
-            
-            # Extraire le contenu texte
-            content_text = project_elem.get_text(separator='\n', strip=True)
-            content_text = ' '.join(content_text.split())  # Nettoyer les espaces
             
             # Déterminer emoji
             emoji = next((emoji for keyword, emoji in project_emojis.items() 
@@ -668,30 +691,57 @@ def convert_html_to_linkedin_markdown(html_content):
             projects.append({
                 'title': title,
                 'image': image,
-                'content': content_text,
+                'sections': sections,
                 'emoji': emoji
             })
         
         # Générer le markdown
         markdown = f"# 📰 Newsletter Portfolio - {datetime.now().strftime('%d/%m/%Y')}\n\n"
-        markdown += "## Récits visuels, horizons numériques : Chaque newsletter, un voyage entre données, créativité et découvertes\n\n"
+        markdown += "## Récits visuels, horizons numériques : Un voyage entre créativité et innovation 🚀\n\n"
         markdown += "---\n\n"
         
         for project in projects:
-            markdown += f"### {project['emoji']} {project['title']}\n"
+            # Titre du projet avec emoji
+            markdown += f"### {project['emoji']} {project['title']}\n\n"
             
+            # Image si disponible
             if project['image']:
                 markdown += f"![{project['title']}]({project['image']})\n\n"
             
-            markdown += f"{project['content']}\n\n"
+            # Parcourir les sections
+            for section, content in project['sections'].items():
+                # Titre de section
+                markdown += f"#### {section}\n\n"
+                
+                # Contenu de la section
+                for item_type, item in content:
+                    if item_type == 'paragraph':
+                        markdown += f"{item}\n\n"
+                    elif item_type == 'bullet':
+                        markdown += f"- {item}\n"
+                    elif item_type == 'numbered':
+                        markdown += f"1. {item}\n"
+                
+                # Ajouter un saut de ligne après chaque section
+                markdown += "\n"
+            
+            # Séparateur entre les projets
             markdown += "---\n\n"
+        
+        # Philosophie et conclusion
+        markdown += "## 💡 Philosophie de l'Innovation\n\n"
+        markdown += "> \"L'innovation naît à l'intersection des disciplines, là où la créativité rencontre la technologie.\"\n\n"
         
         # Section de contact
         markdown += "## 📱 Restons connectés !\n\n"
-        markdown += "N'hésitez pas à me contacter pour discuter de projets.\n\n"
-        markdown += "🔗 [Portfolio](https://portfolio-af-v2.netlify.app/)  \n"
-        markdown += "🔗 [LinkedIn](https://www.linkedin.com/in/alexiafontaine)\n\n"
-        markdown += f"© {datetime.now().year} - Alexia Fontaine - Tous droits réservés"
+        markdown += "**Envie d'explorer de nouveaux horizons numériques ?**\n\n"
+        markdown += "— [Portfolio Complet](https://portfolio-af-v2.netlify.app/)  \n"
+        markdown += "— [Me Contacter sur LinkedIn](https://www.linkedin.com/in/alexiafontaine)\n\n"
+        
+        # Hashtags
+        markdown += "#Innovation #TechCreative #DataScience #DigitalTransformation #CreativeTech\n\n"
+        
+        markdown += f"© {datetime.now().year} Alexia Fontaine - Tous droits réservés"
         
         return markdown
     
