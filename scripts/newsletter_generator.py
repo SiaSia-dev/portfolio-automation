@@ -638,7 +638,7 @@ def convert_html_to_markdown(html_content):
 def convert_html_to_linkedin_markdown(html_content):
     """
     Convertit le contenu HTML en Markdown optimisé pour LinkedIn
-    avec une mise en page structurée et des tirets
+    avec conservation des liens hypertextes
     """
     try:
         from bs4 import BeautifulSoup
@@ -665,20 +665,30 @@ def convert_html_to_linkedin_markdown(html_content):
             sections = {}
             current_section = None
             
-            for elem in project_elem.find_all(['h1', 'h2', 'h3', 'p', 'ul', 'ol']):
+            for elem in project_elem.find_all(['h1', 'h2', 'h3', 'p', 'ul', 'ol', 'a']):
                 if elem.name in ['h1', 'h2', 'h3']:
                     current_section = elem.text.strip()
                     sections[current_section] = []
-                elif current_section and elem.name in ['p', 'ul', 'ol']:
-                    # Pour les paragraphes et listes
+                elif current_section and elem.name in ['p', 'ul', 'ol', 'a']:
+                    # Pour les paragraphes, listes et liens
                     if elem.name == 'p':
-                        sections[current_section].append(('paragraph', elem.text.strip()))
+                        # Traiter les liens dans les paragraphes
+                        paragraph_text = elem.decode_contents()
+                        for link in elem.find_all('a'):
+                            paragraph_text = paragraph_text.replace(
+                                str(link), 
+                                f"[{link.text}]({link.get('href', '')})"
+                            )
+                        sections[current_section].append(('paragraph', paragraph_text.strip()))
                     elif elem.name == 'ul':
                         list_items = [('bullet', li.text.strip()) for li in elem.find_all('li')]
                         sections[current_section].extend(list_items)
                     elif elem.name == 'ol':
                         list_items = [('numbered', li.text.strip()) for li in elem.find_all('li')]
                         sections[current_section].extend(list_items)
+                    elif elem.name == 'a':
+                        # Liens directs
+                        sections[current_section].append(('link', f"[{elem.text}]({elem.get('href', '')})"))
             
             # Image du projet
             img_elem = project_elem.select_one('.hero-image')
@@ -721,6 +731,8 @@ def convert_html_to_linkedin_markdown(html_content):
                         markdown += f"- {item}\n"
                     elif item_type == 'numbered':
                         markdown += f"1. {item}\n"
+                    elif item_type == 'link':
+                        markdown += f"{item}\n\n"
                 
                 # Ajouter un saut de ligne après chaque section
                 markdown += "\n"
