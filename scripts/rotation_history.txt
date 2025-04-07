@@ -1,0 +1,6 @@
+../portfolio\docs\restiction-contenus.md
+../portfolio\docs\evolution-nlp-llm-article.md
+../portfolio\docs\math-humanities-article.md
+../portfolio\docs\optimisation-générateur-Newsletter.md
+../portfolio\docs\système-suivi-classement-documentaire.md
+../portfolio\docs\architecture-modulaire.md
