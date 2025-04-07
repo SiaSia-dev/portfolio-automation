@@ -2,6 +2,7 @@ import os
 import yaml
 import markdown
 import re
+import math
 from datetime import datetime, timedelta
 from pathlib import Path
 import logging
@@ -50,8 +51,65 @@ def has_valid_frontmatter(file_path):
         logger.error(f"Erreur lors de la vérification du frontmatter pour {file_path}: {e}")
         return False
 
-def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30):
+def calculate_freshness(create_time, mod_time, is_new, has_frontmatter, in_recent_rotation):
+    """
+    Calcule un score de fraîcheur qui change avec le temps pour prioriser les fichiers.
+    
+    Paramètres:
+    - create_time: Date de création du fichier
+    - mod_time: Date de dernière modification du fichier
+    - is_new: Si le fichier n'a jamais été inclus dans une newsletter
+    - has_frontmatter: Si le fichier a un frontmatter YAML valide
+    - in_recent_rotation: Si le fichier a été utilisé récemment
+    
+    Retourne:
+    Score de fraîcheur (plus élevé = plus prioritaire)
+    """
+    now = datetime.now()
+    
+    # Pénalité pour les fichiers récemment utilisés
+    rotation_penalty = 500 if in_recent_rotation else 0
+    
+    # Base du score: priorité absolue aux nouveaux fichiers
+    base_score = 1000 if is_new else 0
+    
+    # Facteurs de récence
+    days_since_creation = max(1, (now - create_time).days)
+    days_since_modification = max(1, (now - mod_time).days)
+    
+    # Scores de récence (décroissance logarithmique pour réduire l'impact du temps)
+    # Plus le fichier est ancien, plus son score diminue, mais de moins en moins vite
+    creation_score = 100 / (1 + math.log10(days_since_creation))
+    modification_score = 50 / (1 + math.log10(days_since_modification))
+    
+    # Bonus pour les fichiers avec frontmatter
+    frontmatter_bonus = 25 if has_frontmatter else 0
+    
+    # Composante aléatoire pour introduire de la variété (valeur entre 0 et 15)
+    import random
+    random_factor = random.uniform(0, 15)
+    
+    # Score final
+    return base_score + creation_score + modification_score + frontmatter_bonus + random_factor - rotation_penalty
 
+def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30, 
+                        force_rotation=False, rotation_count=2, rotation_memory=10):
+    """
+    Récupère les fichiers Markdown récemment ajoutés, modifiés ou non encore traités,
+    avec option de rotation forcée pour garantir la diversité des contenus.
+    
+    Paramètres:
+    - docs_directory: Chemin vers le répertoire contenant les fichiers Markdown
+    - processed_files_path: Chemin vers le fichier listant les fichiers déjà traités
+    - max_count: Nombre maximum de fichiers à sélectionner
+    - days_ago: Période de recherche pour les fichiers récents (en jours)
+    - force_rotation: Activer la rotation forcée de contenus
+    - rotation_count: Nombre de fichiers à remplacer lors d'une rotation forcée
+    - rotation_memory: Taille de l'historique des fichiers récemment sélectionnés
+    
+    Retourne:
+    Liste des fichiers sélectionnés
+    """
     try:
         if not os.path.exists(docs_directory):
             logger.error(f"Le répertoire {docs_directory} n'existe pas")
@@ -59,103 +117,136 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
 
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
-        logger.info(f"Date limite pour considérer un fichier comme récent: {cutoff_date}")
         
-        # Charger la liste des fichiers déjà traités s'il existe
+        # Chargement des fichiers déjà traités
         processed_files = set()
         if os.path.exists(processed_files_path):
-            with open(processed_files_path, 'r') as f:
+            with open(processed_files_path, 'r', encoding='utf-8') as f:
                 processed_files = set(f.read().splitlines())
-        logger.info(f"Nombre de fichiers déjà traités: {len(processed_files)}")
         
-        # Dictionnaire pour stocker les fichiers sélectionnés, avec leur chemin comme clé
-        selected_files = {}
+        # Historique des fichiers récemment sélectionnés (pour la rotation)
+        rotation_history_path = os.path.join(os.path.dirname(processed_files_path), 'rotation_history.txt')
+        recent_selections = []
         
+        if os.path.exists(rotation_history_path):
+            with open(rotation_history_path, 'r', encoding='utf-8') as f:
+                recent_selections = [line.strip() for line in f.readlines()]
+                # Limiter l'historique à rotation_memory entrées
+                recent_selections = recent_selections[-rotation_memory:]
+        
+        # Liste pour stocker tous les fichiers candidats
+        all_candidate_files = []
+        
+        # Analyser tous les fichiers
         for filename in os.listdir(docs_directory):
             if filename.endswith('.md'):
                 file_path = os.path.join(docs_directory, filename)
                 file_stats = os.stat(file_path)
-                
-                # Date de dernière modification
                 mod_time = datetime.fromtimestamp(file_stats.st_mtime)
-                
-                # Date de création (dernière metadata change time)
                 create_time = datetime.fromtimestamp(file_stats.st_ctime)
                 
-                # Vérifier les différents critères
+                # Marquer les attributs importants
                 is_new = file_path not in processed_files
                 is_recently_created = create_time >= cutoff_date
                 is_recently_modified = mod_time >= cutoff_date
                 has_frontmatter = has_valid_frontmatter(file_path)
+                in_recent_rotation = file_path in recent_selections
                 
-                # Critères de sélection
-                is_selected = (
-                    is_new or 
-                    is_recently_created or 
-                    is_recently_modified or 
-                    has_frontmatter
-                )
-                
-                if is_selected:
-                    # Ajouter ou mettre à jour l'entrée
-                    if file_path not in selected_files:
-                        selected_files[file_path] = {
-                            'path': file_path,
-                            'modified_at': mod_time,
-                            'created_at': create_time,
-                            'filename': filename,
-                            'newly_added': is_new,
-                            'recently_created': is_recently_created,
-                            'recently_modified': is_recently_modified,
-                            'has_frontmatter': has_frontmatter
-                        }
+                # Ajouter à la liste des candidats
+                all_candidate_files.append({
+                    'path': file_path,
+                    'filename': filename,
+                    'modified_at': mod_time,
+                    'created_at': create_time,
+                    'is_new': is_new,
+                    'recently_created': is_recently_created,
+                    'recently_modified': is_recently_modified,
+                    'has_frontmatter': has_frontmatter,
+                    'in_recent_rotation': in_recent_rotation,
+                    'freshness_score': calculate_freshness(create_time, mod_time, is_new, has_frontmatter, in_recent_rotation)
+                })
         
-        # Tri selon les priorités spécifiées
-        sorted_files = sorted(
-            selected_files.values(), 
-            key=lambda x: (
-                # 1. Priorité absolue aux fichiers jamais traités
-                not x['path'] in processed_files,
-                
-                # 2. Puis fichiers créés récemment
-                not x['recently_created'],
-                
-                # 3. Puis fichiers modifiés récemment
-                not x['recently_modified'],
-                
-                # 4. Puis fichiers avec frontmatter
-                not x['has_frontmatter'],
-                
-                # 5. Par date de création décroissante
-                -x['created_at'].timestamp(),
-                
-                # 6. Par date de modification décroissante
-                -x['modified_at'].timestamp()
-            ), 
-            reverse=True
-        )
+        # Tri basé sur le score de fraîcheur
+        sorted_files = sorted(all_candidate_files, key=lambda x: x['freshness_score'], reverse=True)
         
-        # Limiter le nombre de fichiers
-        recent_files = sorted_files[:max_count]
-        logger.info(f"Nombre de fichiers sélectionnés: {len(recent_files)}")
+        # Sélection de base - les fichiers les mieux notés
+        selected_files = sorted_files[:max_count]
         
-        # Mettre à jour la liste des fichiers traités
-        processed_files.update(file['path'] for file in recent_files)
+        # Si la rotation forcée est activée, remplacer certains fichiers
+        if force_rotation and len(sorted_files) > max_count:
+            # Identifier les chemins de fichiers déjà sélectionnés
+            selected_paths = [file['path'] for file in selected_files]
+            
+            # Trouver des candidats éligibles pour la rotation qui ne sont pas déjà sélectionnés
+            rotation_candidates = [
+                file for file in sorted_files[max_count:] 
+                if file['path'] not in recent_selections and file['path'] not in selected_paths
+            ]
+            
+            # Effectuer la rotation si nous avons des candidats
+            if rotation_candidates:
+                # Tri des fichiers sélectionnés par score croissant (les moins intéressants d'abord)
+                selected_files.sort(key=lambda x: x['freshness_score'])
+                
+                # Déterminer combien de fichiers remplacer (minimum entre rotation_count et candidats disponibles)
+                replacements = min(rotation_count, len(rotation_candidates))
+                
+                logger.info(f"Rotation forcée: Remplacement de {replacements} fichiers")
+                
+                # Remplacer les fichiers les moins bien notés par de nouveaux candidats
+                for i in range(replacements):
+                    # Retirer le fichier le moins intéressant (maintenant à l'index 0 après tri)
+                    removed_file = selected_files.pop(0)
+                    logger.info(f"Rotation: Retrait de '{removed_file['filename']}'")
+                    
+                    # Ajouter un nouveau candidat à la place
+                    new_file = rotation_candidates[i]
+                    selected_files.append(new_file)
+                    logger.info(f"Rotation: Ajout de '{new_file['filename']}'")
+                
+                # Re-trier la liste finale par score
+                selected_files.sort(key=lambda x: x['freshness_score'], reverse=True)
         
-        # Sauvegarder la liste des fichiers traités
-        with open(processed_files_path, 'w') as f:
+        # Mettre à jour l'historique de rotation
+        new_rotation_history = recent_selections + [file['path'] for file in selected_files]
+        # Limiter l'historique à rotation_memory entrées
+        new_rotation_history = new_rotation_history[-rotation_memory:]
+        
+        with open(rotation_history_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(new_rotation_history))
+        
+        # Mettre à jour les fichiers traités
+        for file in selected_files:
+            processed_files.add(file['path'])
+        
+        # Sauvegarder la liste mise à jour des fichiers traités
+        with open(processed_files_path, 'w', encoding='utf-8') as f:
             f.write('\n'.join(processed_files))
-        logger.info(f"Liste des fichiers traités sauvegardée dans {processed_files_path}")
         
         # Log détaillé des fichiers sélectionnés
-        for file in recent_files:
+        for file in selected_files:
             logger.info(f"Fichier sélectionné: {file['filename']}")
-            logger.info(f"  - Nouveau: {file['newly_added']}")
+            logger.info(f"  - Nouveau: {file['is_new']}")
             logger.info(f"  - Créé récemment: {file['recently_created']}")
             logger.info(f"  - Modifié récemment: {file['recently_modified']}")
             logger.info(f"  - Avec frontmatter: {file['has_frontmatter']}")
+            logger.info(f"  - Score de fraîcheur: {file['freshness_score']}")
         
-        return recent_files
+        # Formater les résultats comme avant
+        result_files = []
+        for file in selected_files:
+            result_files.append({
+                'path': file['path'],
+                'filename': file['filename'],
+                'modified_at': file['modified_at'],
+                'created_at': file['created_at'],
+                'newly_added': file['is_new'],
+                'recently_created': file['recently_created'],
+                'recently_modified': file['recently_modified'],
+                'has_frontmatter': file['has_frontmatter']
+            })
+        
+        return result_files
     
     except Exception as e:
         logger.exception(f"Erreur lors de la sélection des fichiers récents: {str(e)}")
@@ -192,101 +283,6 @@ def extract_metadata_and_content(md_file_path):
     except Exception as e:
         logger.error(f"Erreur lors de la lecture du fichier {md_file_path}: {e}")
         return {}, ""
-
-    """
-    Récupère les fichiers Markdown récemment ajoutés, modifiés ou non encore traités.
-    
-    Améliorations:
-    - Ne sauvegarde que les fichiers réellement sélectionnés dans processed_files.txt
-    - Période de vérification réduite à 30 jours par défaut
-    - Meilleure logique pour déterminer quels fichiers inclure
-    """
-    try:
-        if not os.path.exists(docs_directory):
-            logger.error(f"Le répertoire {docs_directory} n'existe pas")
-            return []
-
-        now = datetime.now()
-        cutoff_date = now - timedelta(days=days_ago)
-        logger.info(f"Date limite : {cutoff_date}")
-        
-        # Charger la liste des fichiers déjà traités s'il existe
-        processed_files = set()
-        if os.path.exists(processed_files_path):
-            with open(processed_files_path, 'r') as f:
-                processed_files = set(f.read().splitlines())
-        logger.info(f"Nombre de fichiers déjà traités : {len(processed_files)}")
-        
-        # Liste pour stocker les nouveaux fichiers à traiter
-        md_files = []
-        
-        # Liste pour suivre les fichiers qui seront sélectionnés pour cette newsletter
-        selected_files_paths = set()
-        
-        for filename in os.listdir(docs_directory):
-            if filename.endswith('.md'):
-                file_path = os.path.join(docs_directory, filename)
-                file_stats = os.stat(file_path)
-                
-                logger.debug(f"Traitement du fichier : {file_path}")
-                
-                # Date de dernière modification
-                mod_time = datetime.fromtimestamp(file_stats.st_mtime)
-                
-                # Date de création (dernière metadata change time)
-                create_time = datetime.fromtimestamp(file_stats.st_ctime)
-                
-                # Vérifier si le fichier est:
-                # 1. Jamais traité OU
-                # 2. Récemment modifié OU
-                # 3. Récemment créé
-                is_new = file_path not in processed_files
-                is_recently_modified = mod_time >= cutoff_date
-                is_recently_created = create_time >= cutoff_date
-                
-                if is_new or is_recently_modified or is_recently_created:
-                    logger.info(f"Fichier sélectionné: {filename} - Nouveau: {is_new}, Modifié récemment: {is_recently_modified}, Créé récemment: {is_recently_created}")
-                    
-                    md_files.append({
-                        'path': file_path,
-                        'modified_at': mod_time,
-                        'created_at': create_time,
-                        'filename': filename
-                    })
-                    
-                    # Ajouter ce fichier à la liste des fichiers sélectionnés
-                    selected_files_paths.add(file_path)
-                else:
-                    logger.debug(f"Fichier ignoré : {file_path}")
-        
-        # Stratégie de tri modifiée:
-        # 1. Priorité aux fichiers jamais traités
-        # 2. Ensuite par date de création décroissante
-        # 3. Puis par date de modification décroissante
-        sorted_files = sorted(
-            md_files, 
-            key=lambda x: (
-                x['path'] in processed_files,  # False (nouveaux) avant True (déjà traités)
-                -x['created_at'].timestamp(),  # Tri inversé par timestamp (plus récent d'abord)
-                -x['modified_at'].timestamp()
-            )
-        )
-        
-        # Limiter au nombre maximum spécifié
-        recent_files = sorted_files[:max_count]
-        
-        # Mise à jour de la liste des fichiers traités - SEULEMENT ceux qui ont été sélectionnés
-        processed_files.update(selected_files_paths)
-        
-        # Sauvegarder la liste mise à jour des fichiers traités
-        with open(processed_files_path, 'w') as f:
-            f.write('\n'.join(processed_files))
-        
-        return recent_files
-    
-    except Exception as e:
-        logger.exception(f"Erreur lors de la récupération des fichiers récents : {e}")
-        return []
 
 def extract_image_from_content(content):
     """
@@ -402,8 +398,6 @@ def copy_images_to_newsletter(portfolio_directory, output_directory):
     
     return header_image_exists
 
-
-
 def create_index_and_archives(output_directory, file_date, display_date):
     """
     Crée les fichiers index.html, latest.html et archives.html.
@@ -464,6 +458,7 @@ def create_index_and_archives(output_directory, file_date, display_date):
     except Exception as e:
         logger.error(f"Erreur lors de la création des fichiers index et archives: {e}")
         return False
+
 def debug_log_portfolio_files(portfolio_directory):
     """
     Fonction de débogage pour logger les détails des fichiers du portfolio.
@@ -524,16 +519,33 @@ def main():
     display_date = datetime.now().strftime("%d/%m/%Y")
     file_date = datetime.now().strftime("%Y%m%d")
     
+    # Paramètres de rotation forcée
+    force_rotation = os.environ.get('FORCE_ROTATION', 'false').lower() == 'true'
+    rotation_count = int(os.environ.get('ROTATION_COUNT', '2'))
+    rotation_memory = int(os.environ.get('ROTATION_MEMORY', '10'))
+    
     # Logs de débogage
     logger.info(f"Répertoire portfolio: {portfolio_directory}")
     logger.info(f"Répertoire docs: {docs_directory}")
     logger.info(f"Répertoire de sortie: {output_directory}")
+    logger.info(f"Rotation forcée: {force_rotation}")
+    if force_rotation:
+        logger.info(f"Nombre de fichiers à remplacer: {rotation_count}")
+        logger.info(f"Taille de l'historique de rotation: {rotation_memory}")
     
     # Copie des images
     header_image_exists = copy_images_to_newsletter(portfolio_directory, output_directory)
     
-    # Récupération des fichiers Markdown récents
-    recent_files = get_recent_md_files(docs_directory, processed_files_path)
+    # Récupération des fichiers Markdown récents avec gestion de la rotation
+    recent_files = get_recent_md_files(
+        docs_directory, 
+        processed_files_path,
+        max_count=int(os.environ.get('MAX_COUNT', '6')),
+        days_ago=int(os.environ.get('DAYS_AGO', '30')),
+        force_rotation=force_rotation,
+        rotation_count=rotation_count,
+        rotation_memory=rotation_memory
+    )
     
     if not recent_files:
         logger.warning("Aucun fichier récent trouvé")
