@@ -142,7 +142,7 @@ jobs:
     - name: Vérification finale et rapport
       run: |
         echo "🎉 Newsletter générée avec succès !"
-        echo "URL de la newsletter : https://siasia-dev.github.io/newsletter-portfolio/latest.html"
+        echo "URL de la newsletter : https://siasia-dev.github.io/portfolio-newsletter/latest.html"
         
         # Vérifier que le fichier latest.html existe
         if [ -f "${{ github.workspace }}/newsletter-portfolio/latest.html" ]; then
