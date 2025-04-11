@@ -145,16 +145,16 @@ jobs:
         echo "URL de la newsletter : https://siasia-dev.github.io/portfolio-newsletter/latest.html"
         
         # Vérifier que le fichier latest.html existe
-        if [ -f "${{ github.workspace }}/newsletter-portfolio/latest.html" ]; then
+        if [ -f "${{ github.workspace }}/portfolio-newsletter/latest.html" ]; then
           echo "✅ Fichier latest.html présent"
-          ls -l "${{ github.workspace }}/newsletter-portfolio/latest.html"
+          ls -l "${{ github.workspace }}/portfolio-newsletter/latest.html"
         else
           echo "❌ Fichier latest.html manquant"
           exit 1
         fi
 
         # Vérifier le contenu du fichier
-        FILE_SIZE=$(stat -c%s "${{ github.workspace }}/newsletter-portfolio/latest.html")
+        FILE_SIZE=$(stat -c%s "${{ github.workspace }}/portfolio-newsletter/latest.html")
         if [ $FILE_SIZE -gt 1000 ]; then
           echo "✅ Taille du fichier vérifiée : $FILE_SIZE octets"
         else
@@ -175,7 +175,7 @@ jobs:
           
           La newsletter de cette semaine a été générée et est prête pour votre validation.
           
-          URL de prévisualisation: https://siasia-dev.github.io/newsletter-portfolio/latest.html
+          URL de prévisualisation: https://siasia-dev.github.io/portfolio-newsletter/latest.html
           
           Bonne journée !
         to: ${{ secrets.NOTIFICATION_EMAIL }}
