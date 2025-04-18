@@ -21,10 +21,10 @@ jobs:
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
 
-    - name: Clone newsletter-portfolio
+    - name: Clone portfolio-newsletter
       run: |
         git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/portfolio-newsletter.git
-        cd newsletter-portfolio
+        cd portfolio-newsletter
         git checkout gh-pages
     
     - name: Clone PORTFOLIO
@@ -125,7 +125,7 @@ jobs:
 
     - name: Préparer le déploiement
       run: |
-        cd newsletter-portfolio
+        cd portfolio-newsletter
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config user.name "github-actions[bot]"
         git add .
