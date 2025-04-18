@@ -23,7 +23,7 @@ jobs:
 
     - name: Clone newsletter-portfolio
       run: |
-        git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/newsletter-portfolio.git
+        git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/portfolio-newsletter.git
         cd newsletter-portfolio
         git checkout gh-pages
     
@@ -63,8 +63,8 @@ jobs:
         cd portfolio-automation
         python scripts/newsletter_generator.py
         
-        # Configurer Git dans le répertoire newsletter-portfolio
-        cd ../newsletter-portfolio
+        # Configurer Git dans le répertoire portfolio-newsletter
+        cd ../portfolio-newsletter
         git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         
@@ -82,7 +82,7 @@ jobs:
         git push origin main || echo "Pas de changements à pousser"
       env:
         PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
-        OUTPUT_DIR: ${{ github.workspace }}/newsletter-portfolio
+        OUTPUT_DIR: ${{ github.workspace }}/portfolio-newsletter
         TRACKING_DIR: ${{ github.workspace }}/tracking
         CREATE_INDEX: true
         CREATE_LATEST: true
@@ -91,7 +91,7 @@ jobs:
     - name: Commit et pousse les images mises à jour
       run: |
         set +e  # Désactive l'arrêt du script en cas d'erreur
-        cd newsletter-portfolio
+        cd portfolio-newsletter
         
         # Configure Git localement pour ce dépôt
         git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -135,9 +135,9 @@ jobs:
     - name: Log newsletter files
       run: |
         echo "Liste des fichiers newsletter :"
-        ls -l ${{ github.workspace }}/newsletter-portfolio/newsletter_*.html
+        ls -l ${{ github.workspace }}/portfolio-newsletter/newsletter_*.html
         echo "Contenu du répertoire :"
-        ls -la ${{ github.workspace }}/newsletter-portfolio/
+        ls -la ${{ github.workspace }}/portfolio-newsletter
 
     - name: Vérification finale et rapport
       run: |
