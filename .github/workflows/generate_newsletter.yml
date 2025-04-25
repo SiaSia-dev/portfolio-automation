@@ -3,7 +3,7 @@ name: Génération et Déploiement de Newsletter
 on:
   workflow_dispatch:     # Permet le déclenchement manuel
   schedule:
-    - cron: '0 11 * * 5'  # Tous les vendredis à 10h00
+    - cron: '45 11 * * 5'  # Tous les vendredis à 11h45
 
 permissions:
   contents: write
