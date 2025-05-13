@@ -53,7 +53,7 @@ def generate_project_html(project):
     # Générer le HTML pour le projet
     project_html = f"""
     <div id="{project['id']}" class="project-full-content">
-        <h2>{project['title']}</h2>
+        <h2><a href="#">{project['title']}</a></h2>
         
         <img class="hero-image" src="{project['image']}" alt="{project['title']}" loading="lazy">
         
