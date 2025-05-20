@@ -18,6 +18,7 @@ Ce document explique comment configurer l'intégration avec LinkedIn pour publie
 ## 2. Configurer les permissions de l'application
 
 Une fois votre application créée:
+
 1. Allez dans l'onglet "Auth" (Authentification)
 2. Ajoutez les permissions (scopes) suivantes:
    - `r_liteprofile` - pour accéder à votre profil

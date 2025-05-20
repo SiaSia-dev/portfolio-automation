@@ -104,7 +104,7 @@ def generate_newsletter_template(projects, display_date, header_image_exists=Fal
                 <img class="project-image" src="{project['image']}" alt="{project['title']}" loading="lazy">
             </div>
             <div class="project-content">
-                <h2 class="project-title">{project['title']}</h2>
+                <h2 class="project-title"><a href="#{project["id"]}">{project["title"]}</a></h2>
                 <div class="project-description">{project['description']}</div>
                 <div class="project-summary">{summary}</div>
                 {tags_html}

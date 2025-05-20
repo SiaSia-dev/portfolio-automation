@@ -13,6 +13,7 @@ logs/
 # Fichiers générés
 newsletters/
 *.html
+linkedin-README.md
 
 # Python
 *.py[cod]
