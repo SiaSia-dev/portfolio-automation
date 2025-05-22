@@ -9,6 +9,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  issues: write
 
 jobs:
 
@@ -139,6 +140,88 @@ jobs:
         echo "Contenu du répertoire :"
         ls -la ${{ github.workspace }}/portfolio-newsletter
 
+    - name: Extraire le contenu de la newsletter pour la notification
+      run: |
+        # Créer un script temporaire pour extraire le contenu
+        cat > extract_content.py << 'EOF'
+        import sys
+        from bs4 import BeautifulSoup
+        import datetime
+
+        # Lire le HTML de la newsletter
+        with open(sys.argv[1], 'r', encoding='utf-8') as f:
+            html_content = f.read()
+
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Récupérer tous les projets
+        projects = []
+        project_cards = soup.select('.project-card')
+        
+        for card in project_cards:
+            title_elem = card.select_one('.project-title a')
+            title = title_elem.get_text().strip() if title_elem else "Sans titre"
+            
+            link = title_elem.get('href') if title_elem else None
+            
+            desc_elem = card.select_one('.project-description')
+            description = desc_elem.get_text().strip() if desc_elem else ""
+            
+            if len(description) > 150:
+                description = description[:147] + "..."
+            
+            projects.append({
+                'title': title,
+                'link': link,
+                'description': description
+            })
+        
+        # Créer le résumé markdown
+        markdown = "## 📋 Contenu de la newsletter\n\n"
+        
+        for i, project in enumerate(projects, 1):
+            link = project['link'] if project['link'] else ""
+            markdown += f"### {i}. [{project['title']}](https://siasia-dev.github.io/portfolio-newsletter/latest.html{link})\n"
+            markdown += f"{project['description']}\n\n"
+        
+        print(markdown)
+        EOF
+        
+        # Exécuter le script et capturer la sortie
+        NEWSLETTER_CONTENT=$(python extract_content.py "${{ github.workspace }}/portfolio-newsletter/latest.html")
+        
+        # Créer le fichier issue template
+        mkdir -p .github/ISSUE_TEMPLATE
+        cat > .github/newsletter-notification.md << EOF
+        ---
+        title: "🔔 Newsletter Portfolio générée - À vérifier"
+        labels: notification
+        assignees: SiaSia-dev
+        ---
+
+        # 📰 Newsletter Portfolio - $(date +"%d/%m/%Y")
+
+        La newsletter de cette semaine a été générée et est prête pour votre validation.
+
+        ## 🔗 Liens principaux
+        - [Version complète de la newsletter](https://siasia-dev.github.io/portfolio-newsletter/latest.html)
+        - [Archives des newsletters](https://siasia-dev.github.io/portfolio-newsletter/archives.html)
+
+        $NEWSLETTER_CONTENT
+
+        ---
+
+        ### ✅ Actions requises
+        - Vérifier que la newsletter s'affiche correctement
+        - Confirmer que les liens entre les sections fonctionnent
+        - Valider les images des projets
+        - Publier sur LinkedIn en utilisant le script LinkedIn
+
+        ---
+
+        Générée automatiquement le $(date +"%d/%m/%Y à %H:%M")
+        EOF
+
     - name: Vérification finale et rapport
       run: |
         echo "🎉 Newsletter générée avec succès !"
@@ -162,21 +245,11 @@ jobs:
           exit 1
         fi
 
-    - name: Notification par email
-      uses: dawidd6/action-send-mail@v3
+    - name: Créer une issue de notification
+      uses: JasonEtco/create-an-issue@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
       with:
-        server_address: ${{ secrets.MAIL_SERVER }}
-        server_port: ${{ secrets.MAIL_PORT }}
-        username: ${{ secrets.MAIL_USERNAME }}
-        password: ${{ secrets.MAIL_PASSWORD }}
-        subject: 🔔 Newsletter Portfolio générée - À vérifier
-        body: |
-          Bonjour,
-          
-          La newsletter de cette semaine a été générée et est prête pour votre validation.
-          
-          URL de prévisualisation: https://siasia-dev.github.io/portfolio-newsletter/latest.html
-          
-          Bonne journée !
-        to: ${{ secrets.NOTIFICATION_EMAIL }}
-        from: Newsletter Portfolio <${{ secrets.MAIL_USERNAME }}>
+        filename: .github/newsletter-notification.md
+        update_existing: true
+        search_existing: "Newsletter Portfolio générée - À vérifier"
