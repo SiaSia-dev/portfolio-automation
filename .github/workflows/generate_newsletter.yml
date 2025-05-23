@@ -1,0 +1,237 @@
+name: Génération et Déploiement de Newsletter
+
+on:
+  workflow_dispatch:     # Permet le déclenchement manuel
+  schedule:
+    - cron: '45 09 * * 5'  # Tous les vendredis à 09h45
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+
+  generate-and-deploy-newsletter:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Configure Git
+      run: |
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+
+    - name: Clone portfolio-newsletter
+      run: |
+        git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/portfolio-newsletter.git
+        cd portfolio-newsletter
+        git checkout gh-pages
+    
+    - name: Clone PORTFOLIO
+      run: |
+        git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/PORTFOLIO.git
+    
+    - name: Clone portfolio-automation
+      run: |
+        git clone https://${{ secrets.DEPLOY_TOKEN }}@github.com/SiaSia-dev/portfolio-automation.git
+    
+    - name: Configuration de Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Installation des dépendances
+      run: |
+        python -m pip install --upgrade pip
+        pip install PyYAML markdown beautifulsoup4 requests html2text
+    
+    # Ajout: Préparation des répertoires de suivi
+    - name: Préparation des répertoires de suivi
+      run: |
+        mkdir -p ${{ github.workspace }}/tracking
+        # Copier les fichiers de suivi existants s'ils existent
+        if [ -f "${{ github.workspace }}/portfolio-automation/scripts/processed_files.txt" ]; then
+          cp ${{ github.workspace }}/portfolio-automation/scripts/processed_files.txt ${{ github.workspace }}/tracking/
+        fi
+        if [ -f "${{ github.workspace }}/portfolio-automation/scripts/last_scan_files.txt" ]; then
+          cp ${{ github.workspace }}/portfolio-automation/scripts/last_scan_files.txt ${{ github.workspace }}/tracking/
+        fi
+    
+    - name: Générer la newsletter et déployer
+      run: |
+        # Générer la newsletter
+        cd portfolio-automation
+        python scripts/newsletter_generator.py
+        
+        # Configurer Git dans le répertoire portfolio-newsletter
+        cd ../portfolio-newsletter
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        # Committer les changements
+        git add .
+        git commit -m "Mise à jour de la newsletter" || echo "Pas de changements à committer"
+        git push origin gh-pages || echo "Pas de changements à pousser"
+        
+        # Sauvegarde des fichiers de suivi
+        cd ../portfolio-automation
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add scripts/processed_files.txt scripts/last_scan_files.txt || true
+        git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements à committer"
+        git push origin main || echo "Pas de changements à pousser"
+      env:
+        PORTFOLIO_DIR: ${{ github.workspace }}/PORTFOLIO
+        OUTPUT_DIR: ${{ github.workspace }}/portfolio-newsletter
+        TRACKING_DIR: ${{ github.workspace }}/tracking
+        CREATE_INDEX: true
+        CREATE_LATEST: true
+        CREATE_ARCHIVES: true
+
+    - name: Commit et pousse les images mises à jour
+      run: |
+        set +e  # Désactive l'arrêt du script en cas d'erreur
+        cd portfolio-newsletter
+        
+        # Configure Git localement pour ce dépôt
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        # Vérifie s'il y a des changements à committer
+        if git status --porcelain | grep -q "img/"; then
+          git add img/
+          git commit -m "Mise à jour des images de la newsletter"
+          git push origin gh-pages
+          echo "Images mises à jour et poussées avec succès"
+        else
+          echo "Aucune modification d'images à pousser"
+        fi
+        set -e  # Réactive l'arrêt du script en cas d'erreur
+    
+    - name: Sauvegarde des fichiers de suivi
+      run: |
+        if [ -f "${{ github.workspace }}/tracking/processed_files.txt" ]; then
+          cp ${{ github.workspace }}/tracking/processed_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
+        fi
+        if [ -f "${{ github.workspace }}/tracking/last_scan_files.txt" ]; then
+          cp ${{ github.workspace }}/tracking/last_scan_files.txt ${{ github.workspace }}/portfolio-automation/scripts/
+        fi
+        cd portfolio-automation
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+        git add scripts/processed_files.txt scripts/last_scan_files.txt || true
+        git commit -m "Mise à jour des fichiers de suivi" || echo "Pas de changements dans les fichiers de suivi"
+        git push origin main || echo "Pas de push nécessaire"
+
+    - name: Préparer le déploiement
+      run: |
+        cd portfolio-newsletter
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+        git add .
+        git commit -m "Mise à jour newsletter" || echo "Pas de changements"
+        git push origin gh-pages
+
+    - name: Log newsletter files
+      run: |
+        echo "Liste des fichiers newsletter :"
+        ls -l ${{ github.workspace }}/portfolio-newsletter/newsletter_*.html
+        echo "Contenu du répertoire :"
+        ls -la ${{ github.workspace }}/portfolio-newsletter
+
+    - name: Vérification finale et rapport
+      run: |
+        echo "🎉 Newsletter générée avec succès !"
+        echo "URL de la newsletter : https://siasia-dev.github.io/portfolio-newsletter/latest.html"
+        
+        # Vérifier que le fichier latest.html existe
+        if [ -f "${{ github.workspace }}/portfolio-newsletter/latest.html" ]; then
+          echo "✅ Fichier latest.html présent"
+          ls -l "${{ github.workspace }}/portfolio-newsletter/latest.html"
+        else
+          echo "❌ Fichier latest.html manquant"
+          exit 1
+        fi
+
+        # Vérifier le contenu du fichier
+        FILE_SIZE=$(stat -c%s "${{ github.workspace }}/portfolio-newsletter/latest.html")
+        if [ $FILE_SIZE -gt 1000 ]; then
+          echo "✅ Taille du fichier vérifiée : $FILE_SIZE octets"
+        else
+          echo "❌ Fichier trop petit, problème potentiel de génération"
+          exit 1
+        fi
+
+    - name: Extraire le contenu de la newsletter pour la notification
+      run: |
+        # Créer un script temporaire pour extraire le contenu
+        cat > extract_content.py << 'EOF'
+        import requests
+        from bs4 import BeautifulSoup
+        # Récupérer la newsletter depuis l'URL
+        url = "https://siasia-dev.github.io/portfolio-newsletter/latest.html"
+        
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Extraire un résumé simple du contenu
+            text_content = soup.get_text()
+            
+            # Identifier les thèmes principaux
+            themes = []
+            if "MCP" in text_content:
+                themes.append("MCP et orchestration IA")
+            if "architecture" in text_content.lower():
+                themes.append("Architecture modulaire")
+            if "méréologie" in text_content.lower():
+                themes.append("Méréologie et analyse")
+            
+            # Créer le résumé
+            if themes:
+                print(f"**Thèmes de cette édition :** {', '.join(themes)}")
+            else:
+                print("Articles variés sur l'innovation et la technologie")
+                
+        except Exception as e:
+            print("Newsletter générée avec succès - Contenu disponible en ligne")
+        EOF
+        
+        # Exécuter le script et capturer la sortie
+        NEWSLETTER_CONTENT=$(python extract_content.py)
+        
+        # Créer le template d'issue
+        mkdir -p .github/ISSUE_TEMPLATE
+        cat > .github/newsletter-notification.md << EOF
+        ---
+        title: "🔔 Newsletter Portfolio générée - À vérifier"
+        labels: notification
+        assignees: SiaSia-dev
+        ---
+        # 📰 Newsletter Portfolio - $(date +"%d/%m/%Y")
+        La newsletter de cette semaine a été générée et est prête pour votre validation.
+        ## 🔗 Liens principaux
+        - [Version complète de la newsletter](https://siasia-dev.github.io/portfolio-newsletter/latest.html)
+        - [Archives des newsletters](https://siasia-d ev.github.io/portfolio-newsletter/archives.html)
+        ## 📋 Contenu de la newsletter
+        $NEWSLETTER_CONTENT
+        ---
+        ### ✅ Actions requises
+        1. Vérifier que la newsletter s'affiche correctement
+        2. Confirmer que les liens entre les sections fonctionnent
+        3. Valider les images des projets
+        4. **Pour approuver** : Ajoutez le label \`approved\` à cette issue
+        ---
+        Générée automatiquement le $(date +"%d/%m/%Y à %H:%M")
+        EOF
+
+    - name: Créer une issue de notification
+      uses: JasonEtco/create-an-issue@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+      with:
+        filename: .github/newsletter-notification.md
+        update_existing: true
+        search_existing: "Newsletter Portfolio générée - À vérifier"
