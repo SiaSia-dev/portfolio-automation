@@ -92,14 +92,23 @@ def calculate_freshness(create_time, mod_time, is_new, has_frontmatter, in_recen
     # Score final
     return base_score + creation_score + modification_score + frontmatter_bonus + random_factor - rotation_penalty
 
-def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30):
+def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30, 
+                        force_rotation=False, rotation_count=2, rotation_memory=10):
     """
-    Version simplifiée et prévisible de la sélection de fichiers Markdown.
+    Récupère les fichiers Markdown récemment ajoutés, modifiés ou non encore traités,
+    avec option de rotation forcée pour garantir la diversité des contenus.
     
-    Priorités (dans l'ordre) :
-    1. Fichiers jamais traités (nouveaux)
-    2. Fichiers modifiés dans les X derniers jours
-    3. Fichiers les plus récemment modifiés
+    Paramètres:
+    - docs_directory: Chemin vers le répertoire contenant les fichiers Markdown
+    - processed_files_path: Chemin vers le fichier listant les fichiers déjà traités
+    - max_count: Nombre maximum de fichiers à sélectionner
+    - days_ago: Période de recherche pour les fichiers récents (en jours)
+    - force_rotation: Activer la rotation forcée de contenus
+    - rotation_count: Nombre de fichiers à remplacer lors d'une rotation forcée
+    - rotation_memory: Taille de l'historique des fichiers récemment sélectionnés
+    
+    Retourne:
+    Liste des fichiers sélectionnés
     """
     try:
         if not os.path.exists(docs_directory):
@@ -109,73 +118,121 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
         now = datetime.now()
         cutoff_date = now - timedelta(days=days_ago)
         
-        # Chargement des fichiers déjà traités avec normalisation des chemins
+        # Chargement des fichiers déjà traités
         processed_files = set()
         if os.path.exists(processed_files_path):
             with open(processed_files_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    # Normaliser le chemin pour éviter les doublons
-                    normalized_path = os.path.normpath(line.strip())
-                    processed_files.add(normalized_path)
+                processed_files = set(f.read().splitlines())
         
-        # Analyser tous les fichiers MD
-        all_files = []
+        # Historique des fichiers récemment sélectionnés (pour la rotation)
+        rotation_history_path = os.path.join(os.path.dirname(processed_files_path), 'rotation_history.txt')
+        recent_selections = []
+        
+        if os.path.exists(rotation_history_path):
+            with open(rotation_history_path, 'r', encoding='utf-8') as f:
+                recent_selections = [line.strip() for line in f.readlines()]
+                # Limiter l'historique à rotation_memory entrées
+                recent_selections = recent_selections[-rotation_memory:]
+        
+        # Liste pour stocker tous les fichiers candidats
+        all_candidate_files = []
+        
+        # Analyser tous les fichiers
         for filename in os.listdir(docs_directory):
-            if not filename.endswith('.md'):
-                continue
+            if filename.endswith('.md'):
+                file_path = os.path.join(docs_directory, filename)
+                file_stats = os.stat(file_path)
+                mod_time = datetime.fromtimestamp(file_stats.st_mtime)
+                create_time = datetime.fromtimestamp(file_stats.st_ctime)
                 
-            file_path = os.path.join(docs_directory, filename)
-            normalized_path = os.path.normpath(file_path)
-            
-            file_stats = os.stat(file_path)
-            mod_time = datetime.fromtimestamp(file_stats.st_mtime)
-            create_time = datetime.fromtimestamp(file_stats.st_ctime)
-            
-            # Vérifier si le fichier a été traité
-            is_new = normalized_path not in processed_files
-            is_recent = mod_time >= cutoff_date
-            has_frontmatter = has_valid_frontmatter(file_path)
-            
-            all_files.append({
-                'path': file_path,
-                'normalized_path': normalized_path,
-                'filename': filename,
-                'modified_at': mod_time,
-                'created_at': create_time,
-                'is_new': is_new,
-                'is_recent': is_recent,
-                'has_frontmatter': has_frontmatter,
-                'priority_score': calculate_simple_priority(is_new, is_recent, has_frontmatter, mod_time)
-            })
+                # Marquer les attributs importants
+                is_new = file_path not in processed_files
+                is_recently_created = create_time >= cutoff_date
+                is_recently_modified = mod_time >= cutoff_date
+                has_frontmatter = has_valid_frontmatter(file_path)
+                in_recent_rotation = file_path in recent_selections
+                
+                # Ajouter à la liste des candidats
+                all_candidate_files.append({
+                    'path': file_path,
+                    'filename': filename,
+                    'modified_at': mod_time,
+                    'created_at': create_time,
+                    'is_new': is_new,
+                    'recently_created': is_recently_created,
+                    'recently_modified': is_recently_modified,
+                    'has_frontmatter': has_frontmatter,
+                    'in_recent_rotation': in_recent_rotation,
+                    'freshness_score': calculate_freshness(create_time, mod_time, is_new, has_frontmatter, in_recent_rotation)
+                })
         
-        # Tri par priorité décroissante
-        sorted_files = sorted(all_files, key=lambda x: x['priority_score'], reverse=True)
+        # Tri basé sur le score de fraîcheur
+        sorted_files = sorted(all_candidate_files, key=lambda x: x['freshness_score'], reverse=True)
         
-        # Sélectionner les meilleurs fichiers
+        # Sélection de base - les fichiers les mieux notés
         selected_files = sorted_files[:max_count]
         
-        # Log détaillé
-        logger.info("=== SÉLECTION DES FICHIERS ===")
-        for i, file in enumerate(selected_files):
-            logger.info(f"{i+1}. {file['filename']}")
-            logger.info(f"   Nouveau: {file['is_new']}")
-            logger.info(f"   Récent: {file['is_recent']}")
-            logger.info(f"   Frontmatter: {file['has_frontmatter']}")
-            logger.info(f"   Score: {file['priority_score']}")
-            logger.info(f"   Modifié: {file['modified_at'].strftime('%d/%m/%Y %H:%M')}")
+        # Si la rotation forcée est activée, remplacer certains fichiers
+        if force_rotation and len(sorted_files) > max_count:
+            # Identifier les chemins de fichiers déjà sélectionnés
+            selected_paths = [file['path'] for file in selected_files]
+            
+            # Trouver des candidats éligibles pour la rotation qui ne sont pas déjà sélectionnés
+            rotation_candidates = [
+                file for file in sorted_files[max_count:] 
+                if file['path'] not in recent_selections and file['path'] not in selected_paths
+            ]
+            
+            # Effectuer la rotation si nous avons des candidats
+            if rotation_candidates:
+                # Tri des fichiers sélectionnés par score croissant (les moins intéressants d'abord)
+                selected_files.sort(key=lambda x: x['freshness_score'])
+                
+                # Déterminer combien de fichiers remplacer (minimum entre rotation_count et candidats disponibles)
+                replacements = min(rotation_count, len(rotation_candidates))
+                
+                logger.info(f"Rotation forcée: Remplacement de {replacements} fichiers")
+                
+                # Remplacer les fichiers les moins bien notés par de nouveaux candidats
+                for i in range(replacements):
+                    # Retirer le fichier le moins intéressant (maintenant à l'index 0 après tri)
+                    removed_file = selected_files.pop(0)
+                    logger.info(f"Rotation: Retrait de '{removed_file['filename']}'")
+                    
+                    # Ajouter un nouveau candidat à la place
+                    new_file = rotation_candidates[i]
+                    selected_files.append(new_file)
+                    logger.info(f"Rotation: Ajout de '{new_file['filename']}'")
+                
+                # Re-trier la liste finale par score
+                selected_files.sort(key=lambda x: x['freshness_score'], reverse=True)
+        
+        # Mettre à jour l'historique de rotation
+        new_rotation_history = recent_selections + [file['path'] for file in selected_files]
+        # Limiter l'historique à rotation_memory entrées
+        new_rotation_history = new_rotation_history[-rotation_memory:]
+        
+        with open(rotation_history_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(new_rotation_history))
         
         # Mettre à jour les fichiers traités
         for file in selected_files:
-            processed_files.add(file['normalized_path'])
+            processed_files.add(file['path'])
         
-        # Sauvegarder la liste mise à jour
+        # Sauvegarder la liste mise à jour des fichiers traités
         with open(processed_files_path, 'w', encoding='utf-8') as f:
-            for path in sorted(processed_files):
-                f.write(f"{path}\n")
+            f.write('\n'.join(processed_files))
         
-        logger.info(f"Fichiers traités sauvegardés : {len(processed_files)} entrées")
+        # Log détaillé des fichiers sélectionnés
+        for file in selected_files:
+            logger.info(f"Fichier sélectionné: {file['filename']}")
+            logger.info(f"  - Nouveau: {file['is_new']}")
+            logger.info(f"  - Créé récemment: {file['recently_created']}")
+            logger.info(f"  - Modifié récemment: {file['recently_modified']}")
+            logger.info(f"  - Avec frontmatter: {file['has_frontmatter']}")
+            logger.info(f"  - Score de fraîcheur: {file['freshness_score']}")
         
-        # Formater les résultats
+        # Formater les résultats comme avant
         result_files = []
         for file in selected_files:
             result_files.append({
@@ -184,102 +241,16 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
                 'modified_at': file['modified_at'],
                 'created_at': file['created_at'],
                 'newly_added': file['is_new'],
-                'recently_created': file['created_at'] >= cutoff_date,
-                'recently_modified': file['is_recent'],
+                'recently_created': file['recently_created'],
+                'recently_modified': file['recently_modified'],
                 'has_frontmatter': file['has_frontmatter']
             })
         
         return result_files
     
     except Exception as e:
-        logger.exception(f"Erreur lors de la sélection des fichiers : {str(e)}")
+        logger.exception(f"Erreur lors de la sélection des fichiers récents: {str(e)}")
         return []
-
-def calculate_simple_priority(is_new, is_recent, has_frontmatter, mod_time):
-    """
-    Calcul de priorité simplifié et prévisible.
-    """
-    score = 0
-    
-    # Priorité absolue aux nouveaux fichiers
-    if is_new:
-        score += 1000
-    
-    # Fichiers récents
-    if is_recent:
-        score += 100
-    
-    # Bonus frontmatter
-    if has_frontmatter:
-        score += 50
-    
-    # Score basé sur la date de modification (plus récent = meilleur)
-    # Convertir en timestamp et diviser par 1000 pour avoir un score raisonnable
-    mod_score = mod_time.timestamp() / 1000
-    score += mod_score
-    
-    return score
-
-def clean_processed_files(processed_files_path):
-    """
-    Nettoie le fichier processed_files.txt en supprimant les doublons
-    et en normalisant les chemins.
-    """
-    if not os.path.exists(processed_files_path):
-        return
-    
-    # Lire tous les chemins
-    unique_paths = set()
-    with open(processed_files_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            path = line.strip()
-            if path:
-                # Normaliser le chemin
-                normalized = os.path.normpath(path)
-                unique_paths.add(normalized)
-    
-    # Réécrire le fichier nettoyé
-    with open(processed_files_path, 'w', encoding='utf-8') as f:
-        for path in sorted(unique_paths):
-            f.write(f"{path}\n")
-    
-    logger.info(f"Fichier processed_files.txt nettoyé : {len(unique_paths)} chemins uniques")
-
-def debug_file_selection(docs_directory, processed_files_path):
-    """
-    Fonction de débogage pour comprendre la sélection des fichiers.
-    """
-    logger.info("=== DÉBOGAGE SÉLECTION FICHIERS ===")
-    
-    # Nettoyer d'abord le fichier
-    clean_processed_files(processed_files_path)
-    
-    # Lister tous les fichiers MD
-    if not os.path.exists(docs_directory):
-        logger.error(f"Répertoire inexistant : {docs_directory}")
-        return
-    
-    md_files = [f for f in os.listdir(docs_directory) if f.endswith('.md')]
-    logger.info(f"Fichiers MD trouvés : {len(md_files)}")
-    
-    # Afficher les fichiers traités
-    processed_files = set()
-    if os.path.exists(processed_files_path):
-        with open(processed_files_path, 'r', encoding='utf-8') as f:
-            processed_files = set(os.path.normpath(line.strip()) for line in f if line.strip())
-    
-    logger.info(f"Fichiers déjà traités : {len(processed_files)}")
-    
-    # Afficher les nouveaux fichiers
-    new_files = []
-    for filename in md_files:
-        file_path = os.path.normpath(os.path.join(docs_directory, filename))
-        if file_path not in processed_files:
-            new_files.append(filename)
-    
-    logger.info(f"Nouveaux fichiers (non traités) : {len(new_files)}")
-    if new_files:
-        logger.info(f"Liste : {new_files[:10]}...")  # Afficher les 10 premiers
 
 def extract_metadata_and_content(md_file_path):
     """
