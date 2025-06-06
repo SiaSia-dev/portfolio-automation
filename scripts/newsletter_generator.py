@@ -92,7 +92,7 @@ def calculate_freshness(create_time, mod_time, is_new, has_frontmatter, in_recen
     # Score final
     return base_score + creation_score + modification_score + frontmatter_bonus + random_factor - rotation_penalty
 
-def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30):
+def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_ago=30, force_rotation=False, rotation_count=2, rotation_memory=10):
     """
     Version simplifiée et prévisible de la sélection de fichiers Markdown.
     
@@ -100,6 +100,11 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
     1. Fichiers jamais traités (nouveaux)
     2. Fichiers modifiés dans les X derniers jours
     3. Fichiers les plus récemment modifiés
+    
+    Paramètres ajoutés pour la rotation:
+    - force_rotation: Force la rotation de certains fichiers déjà traités
+    - rotation_count: Nombre de fichiers à remplacer si force_rotation=True
+    - rotation_memory: Nombre de fichiers récents à éviter dans la rotation
     """
     try:
         if not os.path.exists(docs_directory):
@@ -153,6 +158,26 @@ def get_recent_md_files(docs_directory, processed_files_path, max_count=6, days_
         
         # Sélectionner les meilleurs fichiers
         selected_files = sorted_files[:max_count]
+        
+        # Gestion de la rotation forcée
+        if force_rotation and rotation_count > 0:
+            # Séparer les nouveaux des anciens
+            new_files = [f for f in selected_files if f['is_new']]
+            old_files = [f for f in selected_files if not f['is_new']]
+            
+            # Si on a assez de nouveaux fichiers, on garde les nouveaux
+            if len(new_files) >= max_count - rotation_count:
+                selected_files = new_files[:max_count - rotation_count]
+                
+                # Ajouter des fichiers plus anciens pour la rotation
+                older_files = [f for f in sorted_files if not f['is_new']]
+                if older_files:
+                    # Éviter les fichiers très récemment traités
+                    rotation_candidates = older_files[rotation_memory:]
+                    selected_files.extend(rotation_candidates[:rotation_count])
+        
+        # S'assurer qu'on ne dépasse pas max_count
+        selected_files = selected_files[:max_count]
         
         # Log détaillé
         logger.info("=== SÉLECTION DES FICHIERS ===")
