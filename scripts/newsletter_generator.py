@@ -817,7 +817,7 @@ def convert_html_to_linkedin_markdown(html_content):
         markdown += "— [Me Contacter sur LinkedIn](https://www.linkedin.com/in/alexiafontaine)\n\n"
         
         # Hashtags
-        markdown += "#Innovation #TechCreative #DataScience #DigitalTransformation #CreativeTech\n\n"
+        markdown += "#Innovation #TechCreative #Data #DigitalTransformation #CreativeTech\n\n"
         
         markdown += f"© {datetime.now().year} Alexia Fontaine - Tous droits réservés"
         

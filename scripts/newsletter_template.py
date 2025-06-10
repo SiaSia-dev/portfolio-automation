@@ -123,9 +123,8 @@ def generate_newsletter_template(projects, display_date, header_image_exists=Fal
             <div class="header-content">
                 <h1>Newsletter Portfolio</h1>
                 <p>{display_date}</p>
-                <p>Découvrez mes derniers projets et réalisations dans cette newsletter hebdomadaire.</p>
-                <h3>Récits visuels, horizons numériques :</h3> 
-                <h3>Chaque newsletter, un voyage entre données, créativité et découvertes</h3>
+                <p>Décrypter le numérique sur 6 thématiques : découvertes, réflexions et créations de la semaine.</p>
+                <h3>Récits | Horizons numériques | Visuels</h3>
             </div>
         </div>
         """
@@ -134,7 +133,8 @@ def generate_newsletter_template(projects, display_date, header_image_exists=Fal
         <div class="header">
             <h1>Newsletter Portfolio</h1>
             <p>{display_date}</p>
-            <p>Découvrez mes derniers projets et réalisations dans cette newsletter hebdomadaire.</p>
+            <p>J'explore quotidiennement une facette différente du numérique : projets, analyses et visuels.</p>
+            <h3>Récits | Horizons numériques | Visuels</h3>        
         </div>
         """
     
@@ -235,7 +235,7 @@ def generate_archives_template(output_directory):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Archives - Récits visuels, horizons numériques</title>
+    <title>Archives - Récits | Horizons numériques | Visuels</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Poppins:wght@300;400;500&display=swap');
         
