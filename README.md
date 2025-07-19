@@ -18,6 +18,7 @@
 >> 3. Modifiez le fichier workflow pour utiliser votre nom d'utilisateur GitHub
 >>
 ## Structure du dépôt
+```
 portfolio-automation/
 ├── .github/                    <-- Dossier caché avec un point au début
 │   └── workflows/              <-- Sous-dossier obligatoire 
@@ -26,7 +27,7 @@ portfolio-automation/
 │   └── newsletter_generator.py
 ├── newsletters/                <-- Résultats générés
 └── README.md
-
+```
 ## Utilisation
 
 Les newsletters sont générées automatiquement chaque vendredi. Vous pouvez également déclencher manuellement la génération via l'onglet Actions de GitHub.
