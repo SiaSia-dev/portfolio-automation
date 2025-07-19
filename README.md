@@ -1,4 +1,5 @@
 *Note: ce projet se répartit sur plusieurs dépôts pour faciliter la maintenance.*
+*Notre usage a évolué mais il s'agit toujours de générer automatiquement un fichier HTML depuis des fichiers Markdown.*  
  # Portfolio Automation
 >>
 >> Ce dépôt contient des scripts et workflows pour automatiser la création et la publication de contenus à partir de notre dépôt portfolio.
@@ -20,12 +21,12 @@
 ## Structure du dépôt
 ```
 portfolio-automation/
-├── .github/                    <-- Dossier caché avec un point au début
-│   └── workflows/              <-- Sous-dossier obligatoire 
-│       └── generate_newsletter.yml  <-- Fichier de workflow ici
-├── scripts/                    <-- Vos scripts Python ici
+├── .github/                    
+│   └── workflows/              
+│       └── generate_newsletter.yml  
+├── scripts/                    
 │   └── newsletter_generator.py
-├── newsletters/                <-- Résultats générés
+├── newsletters/                
 └── README.md
 ```
 ## Utilisation
