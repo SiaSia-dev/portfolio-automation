@@ -1,10 +1,11 @@
+*Note: ce projet se répartit sur plusieurs dépôts pour faciliter la maintenance.*
  # Portfolio Automation
 >>
->> Ce dépôt contient des scripts et workflows pour automatiser la création et la publication de contenus à partir de votre dépôt portfolio.
+>> Ce dépôt contient des scripts et workflows pour automatiser la création et la publication de contenus à partir de notre dépôt portfolio.
 >>
 >> ## Fonctionnalités
 >>
->> 1. **Génération de Newsletter** : Crée automatiquement une newsletter hebdomadaire à partir des fichiers Markdown les plus récents de votre portfolio  
+>> 1. **Génération de Newsletter** : Crée automatiquement une newsletter hebdomadaire à partir des fichiers Markdown les plus récents de notre portfolio  
 >>
 >> ## Comment ça marche
 >>
