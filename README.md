@@ -1,10 +1,12 @@
+*Note: ce projet se répartit sur plusieurs dépôts pour faciliter la maintenance.*
+*Notre usage a évolué mais il s'agit toujours de générer automatiquement un fichier HTML depuis des fichiers Markdown.*  
  # Portfolio Automation
 >>
->> Ce dépôt contient des scripts et workflows pour automatiser la création et la publication de contenus à partir de votre dépôt portfolio.
+>> Ce dépôt contient des scripts et workflows pour automatiser la création et la publication de contenus à partir de notre dépôt portfolio.
 >>
 >> ## Fonctionnalités
 >>
->> 1. **Génération de Newsletter** : Crée automatiquement une newsletter hebdomadaire à partir des fichiers Markdown les plus récents de votre portfolio  
+>> 1. **Génération de Newsletter** : Crée automatiquement une newsletter hebdomadaire à partir des fichiers Markdown les plus récents de notre portfolio  
 >>
 >> ## Comment ça marche
 >>
@@ -17,15 +19,16 @@
 >> 3. Modifiez le fichier workflow pour utiliser votre nom d'utilisateur GitHub
 >>
 ## Structure du dépôt
+```
 portfolio-automation/
-├── .github/                    <-- Dossier caché avec un point au début
-│   └── workflows/              <-- Sous-dossier obligatoire 
-│       └── generate_newsletter.yml  <-- Fichier de workflow ici
-├── scripts/                    <-- Vos scripts Python ici
+├── .github/                    
+│   └── workflows/              
+│       └── generate_newsletter.yml  
+├── scripts/                    
 │   └── newsletter_generator.py
-├── newsletters/                <-- Résultats générés
+├── newsletters/                
 └── README.md
-
+```
 ## Utilisation
 
 Les newsletters sont générées automatiquement chaque vendredi. Vous pouvez également déclencher manuellement la génération via l'onglet Actions de GitHub.
