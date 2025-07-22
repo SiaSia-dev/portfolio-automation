@@ -101,7 +101,9 @@ def generate_newsletter_template(projects, display_date, header_image_exists=Fal
         projects_grid_html += f"""
         <div class="project-card">
             <div class="project-image-container">
-                <img class="project-image" src="{project['image']}" alt="{project['title']}" loading="lazy">
+                <a href="#{project['id']}">
+                    <img class="project-image" src="{project['image']}" alt="{project['title']}" loading="lazy">
+                </a>
             </div>
             <div class="project-content">
                 <h2 class="project-title"><a href="#{project["id"]}">{project["title"]}</a></h2>
@@ -351,6 +353,17 @@ def generate_archives_template(output_directory):
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
+
+        .project-image-container a {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .project-image-container a:hover .project-image {
+            transform: scale(1.05);
+            transition: transform 0.3s ease;
+        }
         
         .footer {
             text-align: center;
@@ -383,6 +396,7 @@ def generate_archives_template(output_directory):
             color: #777;
             margin-top: 30px;
         }
+
     </style>
 </head>
 <body>

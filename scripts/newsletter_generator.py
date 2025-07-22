@@ -770,6 +770,118 @@ def organize_newsletter_files(output_directory):
         logger.error(f"Erreur lors de l'organisation des fichiers: {e}")
         return False
 
+def generate_issue_content_with_emojis(projects):
+    """
+    Génère le contenu de l'issue en utilisant les CATÉGORIES du frontmatter.
+    Format simple sans numérotation.
+    """
+    
+    # Mapping exact des catégories avec leurs emojis
+    category_emojis = {
+        'actualités': '📰',
+        'développement web': '💻',
+        'lecture': '📄',
+        'pédagogie': '🧭',
+        'infographie': '📊',
+        'culture numérique': '🌐'
+    }
+    
+    # Analyser les projets
+    project_contents = []
+    used_categories = set()
+    
+    for project in projects:
+        title = project.get('title', 'Projet sans titre')
+        description = project.get('description', '')
+        
+        # Chercher dans les CATÉGORIES (pas tags)
+        project_categories = project.get('categories', [])
+        
+        # Déterminer l'emoji en fonction des catégories
+        project_emoji = '📌'  # Emoji par défaut
+        found_category = None
+        
+        # Parcourir les catégories du projet
+        for category in project_categories:
+            category_lower = category.lower().strip()
+            
+            # Chercher une correspondance exacte
+            if category_lower in category_emojis:
+                project_emoji = category_emojis[category_lower]
+                found_category = category_lower
+                used_categories.add(category_lower)
+                break
+        
+        # Si pas trouvé dans categories, chercher dans tags comme fallback
+        if not found_category:
+            project_tags = project.get('tags', [])
+            for tag in project_tags:
+                tag_lower = tag.lower().strip()
+                if tag_lower in category_emojis:
+                    project_emoji = category_emojis[tag_lower]
+                    found_category = tag_lower
+                    used_categories.add(tag_lower)
+                    break
+        
+        # Si toujours pas trouvé, chercher des mots-clés dans le titre
+        if not found_category:
+            title_lower = title.lower()
+            
+            # Mots-clés pour détecter les catégories
+            keyword_mapping = {
+                'actualités': ['actualité', 'news', 'nouvelle'],
+                'développement web': ['web', 'développement', 'dev', 'code', 'programming'],
+                'lecture': ['lecture', 'livre', 'article', 'publication'],
+                'pédagogie': ['pédagogie', 'éducation', 'formation', 'apprentissage'],
+                'infographie': ['infographie', 'data', 'visualisation', 'graphique'],
+                'culture numérique': ['numérique', 'digital', 'technologie', 'innovation']
+            }
+            
+            for category, keywords in keyword_mapping.items():
+                for keyword in keywords:
+                    if keyword in title_lower:
+                        project_emoji = category_emojis[category]
+                        found_category = category
+                        used_categories.add(category)
+                        break
+                if found_category:
+                    break
+        
+        # Format simple SANS numérotation
+        project_content = f"{project_emoji} **{title}**"
+        if description:
+            project_content += f"\n{description}"
+        
+        project_contents.append(project_content)
+    
+    # Créer le résumé des catégories utilisées
+    if used_categories:
+        categories_summary = []
+        
+        # Ordre des catégories pour l'affichage
+        category_display_order = [
+            ('actualités', 'Actualités'),
+            ('développement web', 'Développement web'),
+            ('lecture', 'Lecture'),
+            ('pédagogie', 'Pédagogie'),
+            ('infographie', 'Infographie'),
+            ('culture numérique', 'Culture numérique')
+        ]
+        
+        for category_key, category_display in category_display_order:
+            if category_key in used_categories:
+                emoji = category_emojis[category_key]
+                categories_summary.append(f"{emoji} {category_display}")
+        
+        categories_text = f"**Thèmes :** {' • '.join(categories_summary)}"
+    else:
+        categories_text = "📌 **Thèmes :** Articles variés sur l'innovation et la technologie"
+    
+    # Format final : thèmes + projets (SANS numérotation)
+    final_content = categories_text + "\n\n" + "\n\n".join(project_contents)
+    return final_content
+
+
 def debug_log_portfolio_files(portfolio_directory):
     """
     Fonction de débogage pour logger les détails des fichiers du portfolio.
@@ -872,6 +984,7 @@ def main():
             title = metadata.get('title', os.path.splitext(file_info['filename'])[0])
             description = metadata.get('description', '')
             tags = metadata.get('tags', [])
+            categories = metadata.get('categories', [])  # ← AJOUT POUR LES CATÉGORIES
             url = metadata.get('url', '')
             
             # Recherche et copie de l'image
@@ -894,6 +1007,7 @@ def main():
                 'description': description,
                 'content': content,
                 'tags': tags,
+                'categories': categories,  # ← AJOUT POUR LES CATÉGORIES
                 'url': url,
                 'image': image_rel_path,
                 'filename': file_info['filename'],
@@ -922,8 +1036,16 @@ def main():
             f.write(html_content)
         logger.info(f"Newsletter HTML générée : {html_path}")
         
+        # ← NOUVEAU : Générer le contenu pour l'issue GitHub
+        issue_content = generate_issue_content_with_emojis(projects)
         
-        # Conversion et sauvegarde du Markdown LinkedIn
+        # Sauvegarder le contenu de l'issue
+        issue_content_path = os.path.join(output_directory, "issue_content.txt")
+        with open(issue_content_path, 'w', encoding='utf-8') as f:
+            f.write(issue_content)
+        logger.info(f"Contenu de l'issue généré : {issue_content_path}")
+        
+        # Conversion et sauvegarde du Markdown LinkedIn (si vous gardez cette fonctionnalité)
         markdown_linkedin_content = convert_html_to_linkedin_markdown(html_content)
         if markdown_linkedin_content:
             markdown_linkedin_filename = f"newsletter_{file_date}_linkedin.md"
@@ -943,146 +1065,6 @@ def main():
     except Exception as e:
         logger.error(f"Erreur lors de la génération de la newsletter : {e}")
         return False
-
-def convert_html_to_markdown(html_content):
-    """
-    Convertit un contenu HTML en Markdown.
-    """
-    import html2text
     
-    h = html2text.HTML2Text()
-    h.ignore_links = False
-    h.ignore_images = False
-    h.body_width = 0  # Ne pas couper les lignes
-    
-    markdown_text = h.handle(html_content)
-    return markdown_text
-
-def convert_html_to_linkedin_markdown(html_content):
-    """
-    Convertit le contenu HTML en Markdown optimisé pour LinkedIn
-    avec conservation des liens hypertextes
-    """
-    try:
-        from bs4 import BeautifulSoup
-        
-        soup = BeautifulSoup(html_content, 'html.parser')
-        projects = []
-        
-        # Emojis correspondant aux types de projets courants
-        project_emojis = {
-            "data": "📊", "approche": "🎨", "patrimoine": "🏛️", 
-            "avatar": "🤖", "ecriture": "✍️", "fleur": "🌸", 
-            "creation": "🎨", "visualisation": "📊", "analyse": "📈", 
-            "culture": "🎭", "documentation": "📝", "intelligence": "🧠"
-        }
-        
-        # Trouver tous les projets détaillés
-        project_elements = soup.select('.project-full-content')
-        
-        for project_elem in project_elements:
-            # Extraire titre et sous-titres
-            title = project_elem.h2.text.strip() if project_elem.h2 else ""
-            
-            # Trouver les différentes sections
-            sections = {}
-            current_section = None
-            
-            for elem in project_elem.find_all(['h1', 'h2', 'h3', 'p', 'ul', 'ol', 'a']):
-                if elem.name in ['h1', 'h2', 'h3']:
-                    current_section = elem.text.strip()
-                    sections[current_section] = []
-                elif current_section and elem.name in ['p', 'ul', 'ol', 'a']:
-                    # Pour les paragraphes, listes et liens
-                    if elem.name == 'p':
-                        # Traiter les liens dans les paragraphes
-                        paragraph_text = elem.decode_contents()
-                        for link in elem.find_all('a'):
-                            paragraph_text = paragraph_text.replace(
-                                str(link), 
-                                f"[{link.text}]({link.get('href', '')})"
-                            )
-                        sections[current_section].append(('paragraph', paragraph_text.strip()))
-                    elif elem.name == 'ul':
-                        list_items = [('bullet', li.text.strip()) for li in elem.find_all('li')]
-                        sections[current_section].extend(list_items)
-                    elif elem.name == 'ol':
-                        list_items = [('numbered', li.text.strip()) for li in elem.find_all('li')]
-                        sections[current_section].extend(list_items)
-                    elif elem.name == 'a':
-                        # Liens directs
-                        sections[current_section].append(('link', f"[{elem.text}]({elem.get('href', '')})"))
-            
-            # Image du projet
-            img_elem = project_elem.select_one('.hero-image')
-            image = img_elem.get('src', '') if img_elem else ''
-            
-            # Déterminer emoji
-            emoji = next((emoji for keyword, emoji in project_emojis.items() 
-                          if keyword.lower() in title.lower()), "📌")
-            
-            projects.append({
-                'title': title,
-                'image': image,
-                'sections': sections,
-                'emoji': emoji
-            })
-        
-        # Générer le markdown
-        markdown = f"# 📰 Newsletter Portfolio - {datetime.now().strftime('%d/%m/%Y')}\n\n"
-        markdown += "## Récits visuels, horizons numériques : Un voyage entre créativité et innovation 🚀\n\n"
-        markdown += "---\n\n"
-        
-        for project in projects:
-            # Titre du projet avec emoji
-            markdown += f"### {project['emoji']} {project['title']}\n\n"
-            
-            # Image si disponible
-            if project['image']:
-                markdown += f"![{project['title']}]({project['image']})\n\n"
-            
-            # Parcourir les sections
-            for section, content in project['sections'].items():
-                # Titre de section
-                markdown += f"#### {section}\n\n"
-                
-                # Contenu de la section
-                for item_type, item in content:
-                    if item_type == 'paragraph':
-                        markdown += f"{item}\n\n"
-                    elif item_type == 'bullet':
-                        markdown += f"- {item}\n"
-                    elif item_type == 'numbered':
-                        markdown += f"1. {item}\n"
-                    elif item_type == 'link':
-                        markdown += f"{item}\n\n"
-                
-                # Ajouter un saut de ligne après chaque section
-                markdown += "\n"
-            
-            # Séparateur entre les projets
-            markdown += "---\n\n"
-        
-        # Philosophie et conclusion
-        markdown += "## 💡 Philosophie de l'Innovation\n\n"
-        markdown += "> \"L'innovation naît à l'intersection des disciplines, là où la créativité rencontre la technologie.\"\n\n"
-        
-        # Section de contact
-        markdown += "## 📱 Restons connectés !\n\n"
-        markdown += "**Envie d'explorer de nouveaux horizons numériques ?**\n\n"
-        markdown += "— [Portfolio Complet](https://portfolio-af-v2.netlify.app/)  \n"
-        markdown += "— [Me Contacter sur LinkedIn](https://www.linkedin.com/in/alexiafontaine)\n\n"
-        
-        # Hashtags
-        markdown += "#Innovation #TechCreative #Data #DigitalTransformation #CreativeTech\n\n"
-        
-        markdown += f"© {datetime.now().year} Alexia Fontaine - Tous droits réservés"
-        
-        return markdown
-    
-    except Exception as e:
-        logger.error(f"Erreur lors de la conversion LinkedIn Markdown: {e}")
-        return None
-
 if __name__ == "__main__":
     main()
