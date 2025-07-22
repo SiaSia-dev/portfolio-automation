@@ -4,3 +4,5 @@ beautifulsoup4==4.12.2
 requests==2.31.0
 GitPython==3.1.40  # Pour gérer les opérations Git
 python-dateutil==2.8.2  # Pour manipulation avancée des dates
+html2text>=2020.1.16
+lxml>=4.9.0

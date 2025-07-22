@@ -87,6 +87,58 @@ jobs:
         CREATE_LATEST: true
         CREATE_ARCHIVES: true
 
+# Ajout d'une étape dans generate_newsletter.yml après la génération
+
+    - name: Organiser les fichiers dans la structure archives
+      run: |
+        cd portfolio-newsletter
+        
+        # Créer le dossier archives s'il n'existe pas
+        mkdir -p archives
+        
+        # Déplacer tous les anciens fichiers newsletter vers archives (sauf latest.html et index.html)
+        for file in newsletter_*.html; do
+          if [ -f "$file" ] && [ "$file" != "latest.html" ]; then
+            mv "$file" archives/
+            echo "Déplacé $file vers archives/"
+          fi
+        done
+        
+        # Copier les images vers le dossier archives pour compatibilité
+        if [ -d "img" ] && [ ! -d "archives/img" ]; then
+          cp -r img archives/
+          echo "Images copiées vers archives/img"
+        fi
+        
+        # Vérifier que latest.html existe à la racine
+        if [ ! -f "latest.html" ]; then
+          echo "Erreur: latest.html non trouvé à la racine"
+          exit 1
+        fi
+        
+        echo "Organisation des fichiers terminée"
+      
+    - name: Commit et pousse la nouvelle structure
+      run: |
+        cd portfolio-newsletter
+        
+        # Configure Git localement pour ce dépôt
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        # Ajouter tous les changements
+        git add .
+        git add archives/
+        
+        # Committer si il y a des changements
+        if git status --porcelain | grep -q .; then
+          git commit -m "Réorganisation: archives dans dossier dédié, latest.html à la racine"
+          git push origin gh-pages
+          echo "Structure réorganisée et poussée avec succès"
+        else
+          echo "Aucune modification de structure à pousser"
+        fi
+
     - name: Commit et pousse les images mises à jour
       run: |
         set +e  # Désactive l'arrêt du script en cas d'erreur

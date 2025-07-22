@@ -9,6 +9,7 @@ assignees: SiaSia-dev
 La newsletter de cette semaine a été générée et est prête pour votre validation.
 
 ## 🔗 Liens principaux
+
 - [Version complète de la newsletter](https://siasia-dev.github.io/portfolio-newsletter/latest.html)
 - [Archives des newsletters](https://siasia-dev.github.io/portfolio-newsletter/archives.html)
 
@@ -19,6 +20,7 @@ La newsletter de cette semaine a été générée et est prête pour votre valid
 ---
 
 ### ✅ Actions requises
+
 1. Vérifier que la newsletter s'affiche correctement
 2. Confirmer que les liens entre les sections fonctionnent
 3. Valider les images des projets

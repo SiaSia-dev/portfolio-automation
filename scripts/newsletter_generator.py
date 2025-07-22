@@ -355,10 +355,21 @@ def extract_image_from_content(content):
     
     return None
 
-def find_image_for_project(project_name, content, portfolio_directory):
+def find_image_for_project(project_name, content, portfolio_directory, metadata=None):    
     """
     Recherche une image pour le projet, en cherchant d'abord dans le contenu puis dans le dossier img.
     """
+    # 0. D'ABORD, utiliser l'image spécifiée dans les métadonnées
+    if metadata and 'image' in metadata:
+        image_from_meta = metadata['image']
+        if image_from_meta:
+            # Supprimer le préfixe "img/" s'il existe
+            image_filename = image_from_meta.replace('img/', '')
+            image_path = os.path.join(portfolio_directory, "img", image_filename)
+            if os.path.exists(image_path):
+                logger.info(f"✅ Image trouvée via métadonnées: {image_path}")
+                return image_path
+
     # 1. D'abord, chercher dans le contenu du fichier markdown
     image_from_content = extract_image_from_content(content)
     if image_from_content:
@@ -452,29 +463,87 @@ def copy_images_to_newsletter(portfolio_directory, output_directory):
     
     return header_image_exists
 
+def copy_images_to_archives(output_directory):
+    """
+    Copie les images vers le dossier archives pour que les newsletters archivées 
+    puissent accéder aux images.
+    """
+    try:
+        img_dir = os.path.join(output_directory, "img")
+        archives_dir = os.path.join(output_directory, "archives")
+        archives_img_dir = os.path.join(archives_dir, "img")
+        
+        # Vérifier que le dossier archives existe
+        if not os.path.exists(archives_dir):
+            os.makedirs(archives_dir, exist_ok=True)
+            logger.info(f"Dossier archives créé: {archives_dir}")
+        
+        # Copier les images vers archives/img/
+        if os.path.exists(img_dir):
+            if os.path.exists(archives_img_dir):
+                # Si le dossier existe déjà, le supprimer d'abord pour éviter les conflits
+                shutil.rmtree(archives_img_dir)
+                logger.info("Ancien dossier archives/img/ supprimé")
+            
+            # Copier tout le dossier img vers archives/img/
+            shutil.copytree(img_dir, archives_img_dir)
+            logger.info(f"✅ Images copiées vers archives/img/ : {archives_img_dir}")
+            
+            # Compter les fichiers copiés
+            copied_files = len([f for f in os.listdir(archives_img_dir) 
+                              if f.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'))])
+            logger.info(f"✅ {copied_files} images disponibles dans archives/img/")
+            
+            return True
+        else:
+            logger.warning(f"Dossier source d'images non trouvé: {img_dir}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Erreur lors de la copie des images vers archives: {e}")
+        return False
+
 def create_index_and_archives(output_directory, file_date, display_date):
     """
-    Crée les fichiers index.html, latest.html et archives.html.
+    Crée les fichiers index.html, latest.html et archives.html avec nouvelle structure.
     """
     try:
         # Créer le dossier de sortie s'il n'existe pas
         Path(output_directory).mkdir(parents=True, exist_ok=True)
         
-        # Trouver tous les fichiers HTML de newsletter
+        # Créer le dossier archives s'il n'existe pas
+        archives_dir = os.path.join(output_directory, "archives")
+        Path(archives_dir).mkdir(parents=True, exist_ok=True)
+
+        # Copier les images vers le dossier archives/img
+        copy_images_to_archives(output_directory)
+
+        # Déplacer tous les anciens fichiers newsletter vers le dossier archives
         html_files = [f for f in os.listdir(output_directory) if f.startswith('newsletter_') and f.endswith('.html')]
+        
+        for html_file in html_files:
+            src_path = os.path.join(output_directory, html_file)
+            dest_path = os.path.join(archives_dir, html_file)
+            
+            # Déplacer le fichier s'il n'est pas déjà dans archives
+            if os.path.exists(src_path) and not os.path.exists(dest_path):
+                shutil.move(src_path, dest_path)
+                logger.info(f"Fichier déplacé vers archives: {html_file}")
         
         # Récupérer le répertoire parent
         parent_dir = os.path.dirname(output_directory)
         
-        # Trier les fichiers par date (du plus récent au plus ancien)
-        sorted_files = sorted(html_files, key=lambda f: os.path.getmtime(os.path.join(output_directory, f)), reverse=True)
+        # Trouver le fichier le plus récent dans le dossier archives
+        archived_files = [f for f in os.listdir(archives_dir) if f.startswith('newsletter_') and f.endswith('.html')]
+        sorted_files = sorted(archived_files, key=lambda f: os.path.getmtime(os.path.join(archives_dir, f)), reverse=True)
         
-        # La dernière newsletter
         latest_file = sorted_files[0] if sorted_files else None
         
         if latest_file:
+            latest_file_path = os.path.join(archives_dir, latest_file)
+            
             # Générer et sauvegarder index.html à la racine
-            index_content = generate_index_template(latest_file)
+            index_content = generate_index_template("latest.html") # Pointe vers derniere newsletter
             index_path = os.path.join(parent_dir, "index.html")
             with open(index_path, 'w', encoding='utf-8') as f:
                 f.write(index_content)
@@ -490,19 +559,30 @@ def create_index_and_archives(output_directory, file_date, display_date):
             with open(output_index_path, 'w', encoding='utf-8') as f:
                 f.write(index_content)
             
-            # Générer latest.html
+            # Générer latest.html à la racine (copie du fichier le plus récent)
             latest_path = os.path.join(output_directory, "latest.html")
-            latest_content = generate_latest_template(os.path.join(output_directory, latest_file))
+            latest_content = generate_latest_template(latest_file_path)
+            
+            # Modifier les liens dans latest.html pour pointer vers le dossier archives
+            latest_content = update_links_for_archives(latest_content)
+            
             with open(latest_path, 'w', encoding='utf-8') as f:
                 f.write(latest_content)
             logger.info(f"Latest.html créé: {latest_path}")
             
-            # Générer archives.html
-            archives_path = os.path.join(output_directory, "archives.html")
-            archives_content = generate_archives_template(output_directory)
-            with open(archives_path, 'w', encoding='utf-8') as f:
+            # Générer archives.html dans le dossier archives
+            archives_html_path = os.path.join(archives_dir, "archives.html")
+            archives_content = generate_archives_template(archives_dir, is_in_archives_folder=True)
+            with open(archives_html_path, 'w', encoding='utf-8') as f:
                 f.write(archives_content)
-            logger.info(f"Archives.html créé: {archives_path}")
+            logger.info(f"Archives.html créé: {archives_html_path}")
+            
+            # Créer aussi un fichier archives.html à la racine qui redirige
+            root_archives_path = os.path.join(output_directory, "archives.html")
+            redirect_content = generate_archives_redirect()
+            with open(root_archives_path, 'w', encoding='utf-8') as f:
+                f.write(redirect_content)
+            logger.info(f"Archives redirect créé: {root_archives_path}")
             
             return True
         else:
@@ -511,6 +591,183 @@ def create_index_and_archives(output_directory, file_date, display_date):
         
     except Exception as e:
         logger.error(f"Erreur lors de la création des fichiers index et archives: {e}")
+        return False
+
+def update_links_for_archives(html_content):
+    """
+    Met à jour les liens dans le contenu HTML pour pointer vers le dossier archives.
+    """
+    # Remplacer les liens vers archives.html
+    html_content = html_content.replace('href="archives.html"', 'href="archives/archives.html"')
+    
+    # Si vous avez des liens vers des newsletters spécifiques, les mettre à jour aussi
+    import re
+    html_content = re.sub(
+        r'href="(newsletter_\d{8}\.html)"', 
+        r'href="archives/\1"', 
+        html_content
+    )
+    
+    return html_content
+
+def generate_archives_redirect():
+    """
+    Génère une page de redirection vers le dossier archives.
+    """
+    return """<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0;url=archives/archives.html">
+    <title>Archives - Redirection</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            padding: 50px; 
+            background-color: #f4f4f4; 
+        }
+        p { 
+            color: #333; 
+            font-size: 18px; 
+        }
+        a { 
+            color: #4a6d8c; 
+            text-decoration: none; 
+        }
+        a:hover { 
+            text-decoration: underline; 
+        }
+    </style>
+</head>
+<body>
+    <p>Redirection vers les archives...</p>
+    <p>Si la redirection automatique ne fonctionne pas, 
+    <a href="archives/archives.html">cliquez ici</a>.</p>
+</body>
+</html>"""
+
+def load_html_template(template_path):
+    """
+    Charge un template HTML depuis un fichier.
+    """
+    try:
+        logger.info(f"Chargement du template depuis: {template_path}")
+        if not os.path.exists(template_path):
+            logger.warning(f"Le fichier template n'existe pas: {template_path}")
+            return ""
+            
+        with open(template_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+            logger.info(f"Template chargé avec succès: {len(content)} caractères")
+            return content
+    except Exception as e:
+        logger.error(f"Erreur lors du chargement du template HTML {template_path}: {e}")
+        return ""
+
+def generate_archives_template(archives_directory, is_in_archives_folder=False):
+    """
+    Génère le template HTML pour la page des archives.
+    Paramètre is_in_archives_folder : True si le fichier sera dans le dossier archives
+    """
+    # Chemin vers le template des archives
+    template_path = os.path.join(os.getcwd(), 'archive_template.html')
+    
+    # Essayer de charger le template personnalisé
+    template_html = load_html_template(template_path)
+    
+    # Si aucun template personnalisé n'est trouvé, utiliser un template par défaut
+    if not template_html:
+        logger.warning("Template d'archives non trouvé, utilisation du template par défaut")
+        # Votre template par défaut ici (avec les styles CSS)
+        template_html = """<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archives - Récits visuels, horizons numériques</title>
+    <!-- Vos styles CSS ici -->
+</head>
+<body>
+    <div class="container">
+        <div class="tabs">
+            <div class="tab" onclick="window.location.href='{back_to_latest}'">Newsletter</div>
+            <div class="tab active">Archives</div>
+        </div>
+        
+        <h1>Archives des newsletters</h1>
+        <ul>
+            {archives_items}
+        </ul>
+        
+        <a href="{back_to_latest}" class="back-link">Retour à la dernière newsletter</a>
+        
+        <!-- Footer -->
+    </div>
+</body>
+</html>"""
+    
+    # Déterminer les chemins selon l'emplacement du fichier
+    if is_in_archives_folder:
+        back_to_latest = "../latest.html"
+        archives_files_path = archives_directory
+    else:
+        back_to_latest = "latest.html" 
+        archives_files_path = os.path.join(archives_directory, "archives")
+    
+    # Trouver tous les fichiers HTML de newsletter dans le bon répertoire
+    html_files = [f for f in os.listdir(archives_files_path) if f.startswith('newsletter_') and f.endswith('.html')]
+    
+    # Trier les fichiers par date (du plus récent au plus ancien)
+    sorted_files = sorted(html_files, key=lambda f: os.path.getmtime(os.path.join(archives_files_path, f)), reverse=True)
+    
+    # Générer la liste des archives
+    archives_items = ""
+    for file in sorted_files:
+        if file not in ["archives.html", "latest.html", "index.html"]:
+            # Extraire la date du nom de fichier
+            date_match = re.search(r'newsletter_(\d{4})(\d{2})(\d{2})', file)
+            if date_match:
+                year, month, day = date_match.groups()
+                formatted_date = f"{day}/{month}/{year}"
+            else:
+                # Utiliser la date de modification si le format du nom ne correspond pas
+                mod_time = datetime.fromtimestamp(os.path.getmtime(os.path.join(archives_files_path, file)))
+                formatted_date = mod_time.strftime("%d/%m/%Y")
+            
+            archives_items += f'        <li><a href="{file}">Newsletter du {formatted_date}</a></li>\n'
+    
+    # Remplacer les variables dans le template
+    html_content = template_html.replace("{archives_items}", archives_items)
+    html_content = html_content.replace("{current_year}", str(datetime.now().year))
+    html_content = html_content.replace("{back_to_latest}", back_to_latest)
+    
+    logger.info(f"Archives générées avec {len(sorted_files)} newsletters")
+    
+    return html_content
+
+def organize_newsletter_files(output_directory):
+    """
+    Organise les fichiers après génération : déplace vers archives et crée latest.html
+    """
+    try:
+        # Créer le dossier archives
+        archives_dir = os.path.join(output_directory, "archives")
+        os.makedirs(archives_dir, exist_ok=True)
+        
+        # Copier les images vers le dossier archives aussi
+        img_dir = os.path.join(output_directory, "img")
+        archives_img_dir = os.path.join(archives_dir, "img")
+        
+        if os.path.exists(img_dir) and not os.path.exists(archives_img_dir):
+            shutil.copytree(img_dir, archives_img_dir)
+            logger.info("Images copiées vers le dossier archives")
+        
+        logger.info("Organisation des fichiers terminée")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de l'organisation des fichiers: {e}")
         return False
 
 def debug_log_portfolio_files(portfolio_directory):
@@ -618,7 +875,7 @@ def main():
             url = metadata.get('url', '')
             
             # Recherche et copie de l'image
-            image_path = find_image_for_project(title, content, portfolio_directory)
+            image_path = find_image_for_project(title, content, portfolio_directory, metadata)
             image_filename = os.path.basename(image_path) if image_path else ""
             
             if image_path and os.path.exists(image_path):
